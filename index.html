@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STORM WATCH — Simulateur Météo</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #000;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+  color: #00ff41;
+  user-select: none;
+}
+
+#gameCanvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+/* ===== RADAR ===== */
+#radarWrapper {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  z-index: 100;
+}
+
+#radarLabel {
+  color: #00ff41;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-align: center;
+  margin-bottom: 4px;
+  opacity: 0.85;
+  text-shadow: 0 0 6px #00ff41;
+}
+
+#radarPanel {
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,255,65,0.7);
+  box-shadow: 0 0 18px rgba(0,255,65,0.4), inset 0 0 15px rgba(0,255,65,0.05);
+  overflow: hidden;
+}
+
+#radarCanvas { display: block; }
+
+/* ===== ALERT BUTTONS ===== */
+#alertPanel {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.alert-btn {
+  padding: 8px 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  border: 2px solid;
+  background: rgba(0,0,0,0.85);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.btn-watch  { border-color: #f5c400; color: #f5c400; }
+.btn-watch:hover  { background: rgba(245,196,0,0.15); box-shadow: 0 0 12px #f5c400; }
+.btn-watch.fired  { background: rgba(245,196,0,0.2); box-shadow: 0 0 16px #f5c400; opacity: 0.7; cursor: default; }
+
+.btn-warning { border-color: #ff5500; color: #ff5500; }
+.btn-warning:hover { background: rgba(255,85,0,0.15); box-shadow: 0 0 12px #ff5500; }
+.btn-warning.fired { background: rgba(255,85,0,0.2); box-shadow: 0 0 16px #ff5500; opacity: 0.7; cursor: default; }
+
+.btn-emergency { border-color: #ff0000; color: #ff0000; }
+.btn-emergency:hover { background: rgba(255,0,0,0.15); box-shadow: 0 0 12px #ff0000; }
+.btn-emergency.fired {
+  background: rgba(255,0,0,0.25);
+  box-shadow: 0 0 20px #ff0000;
+  animation: blink-em 0.8s infinite;
+  opacity: 0.9;
+  cursor: default;
+}
+
+@keyframes blink-em { 50% { opacity: 0.5; } }
+
+/* ===== PHASE INDICATOR ===== */
+#phaseBox {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  text-align: center;
+  pointer-events: none;
+}
+
+#phaseText {
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 4px;
+  text-shadow: 0 0 18px currentColor;
+  color: #00ff41;
+}
+
+#scoreText {
+  font-size: 12px;
+  color: #ccc;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+/* ===== INSTRUMENTS ===== */
+#instruments {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 195px;
+  background: rgba(0,5,0,0.88);
+  border: 1px solid rgba(0,255,65,0.5);
+  padding: 12px;
+  z-index: 100;
+  font-size: 11px;
+  box-shadow: 0 0 12px rgba(0,255,65,0.2);
+}
+
+#instruments h3 {
+  color: #00ff41;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(0,255,65,0.3);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+.inst-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0;
+  color: #88cc88;
+}
+.inst-val { color: #fff; font-weight: bold; }
+.inst-val.danger  { color: #ff5500; text-shadow: 0 0 8px #ff5500; }
+.inst-val.critical { color: #ff0000; text-shadow: 0 0 8px #ff0000; animation: blink-em 0.5s infinite; }
+
+/* ===== EF SCALE ===== */
+#efPanel {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 200px;
+  background: rgba(0,0,0,0.88);
+  border: 1px solid rgba(255,85,0,0.5);
+  padding: 12px;
+  z-index: 100;
+  box-shadow: 0 0 12px rgba(255,85,0,0.2);
+}
+
+#efPanel h3 {
+  color: #ff5500;
+  font-size: 11px;
+  margin-bottom: 8px;
+  letter-spacing: 1.5px;
+}
+
+#efBarOuter {
+  background: #0a0a0a;
+  height: 16px;
+  border: 1px solid #333;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+#efBar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(to right, #00dd00, #aadd00, #ffcc00, #ff6600, #ff0000, #880088);
+  transition: width 0.8s ease;
+}
+
+#efText   { font-size: 10px; color: #ffcc00; margin-top: 4px; }
+#distText { font-size: 11px; color: #f5c400; margin-top: 4px; font-weight: bold; }
+
+/* ===== RADIO LOG ===== */
+#radioLog {
+  position: fixed;
+  left: 240px;
+  bottom: 16px;
+  width: 290px;
+  max-height: 140px;
+  background: rgba(0,5,0,0.88);
+  border: 1px solid rgba(0,255,65,0.4);
+  padding: 8px 10px;
+  overflow-y: auto;
+  z-index: 100;
+  font-size: 10px;
+  box-shadow: 0 0 10px rgba(0,255,65,0.15);
+}
+
+#radioLog .log-title {
+  color: #00ff41;
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(0,255,65,0.2);
+  padding-bottom: 4px;
+}
+
+.radio-msg         { color: #77bb77; margin: 2px 0; padding: 1px 0; border-bottom: 1px solid #001500; line-height: 1.4; }
+.radio-msg.alert   { color: #ff8833; }
+.radio-msg.danger  { color: #ff3300; font-weight: bold; }
+
+/* ===== VIGNETTE ===== */
+#vignette {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 30;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%);
+}
+
+/* ===== SCREEN FLASH ===== */
+#flash {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 200;
+  opacity: 0;
+  background: #fff;
+  transition: opacity 0.05s;
+}
+
+/* ===== INTRO ===== */
+#intro {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.97);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+#intro h1 {
+  font-size: 52px;
+  color: #ff5500;
+  text-shadow: 0 0 40px #ff5500, 0 0 80px rgba(255,85,0,0.3);
+  margin-bottom: 6px;
+  letter-spacing: 8px;
+}
+
+#intro .sub {
+  color: #00ff41;
+  font-size: 13px;
+  letter-spacing: 4px;
+  margin-bottom: 36px;
+}
+
+#intro .instruct {
+  color: #999;
+  font-size: 12px;
+  line-height: 2.2;
+  text-align: center;
+  max-width: 560px;
+  margin-bottom: 40px;
+}
+
+#intro .instruct strong { color: #f5c400; }
+
+#startBtn {
+  padding: 14px 54px;
+  background: transparent;
+  border: 2px solid #ff5500;
+  color: #ff5500;
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  cursor: pointer;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+#startBtn:hover { background: rgba(255,85,0,0.15); box-shadow: 0 0 30px #ff5500; }
+
+/* ===== GAME OVER ===== */
+#gameover {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92);
+  z-index: 500;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#gameover h1 { font-size: 42px; color: #ff0000; text-shadow: 0 0 30px #ff0000; margin-bottom: 20px; }
+#goScore { font-size: 22px; color: #fff; margin-bottom: 10px; }
+#goDetails { font-size: 13px; color: #aaa; line-height: 2.2; text-align: center; margin-bottom: 30px; }
+
+#replayBtn {
+  padding: 12px 40px;
+  background: transparent;
+  border: 2px solid #ff5500;
+  color: #ff5500;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  cursor: pointer;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+#replayBtn:hover { background: rgba(255,85,0,0.15); box-shadow: 0 0 20px #ff5500; }
+
+/* ===== CROSSHAIR ===== */
+#xhair {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px; height: 16px;
+  pointer-events: none;
+  z-index: 50;
+}
+#xhair::before, #xhair::after {
+  content: '';
+  position: absolute;
+  background: rgba(255,255,255,0.4);
+}
+#xhair::before { width: 1px; height: 100%; left: 50%; top: 0; }
+#xhair::after  { height: 1px; width: 100%; top: 50%; left: 0; }
+
+/* ===== LOCK HINT ===== */
+#lockHint {
+  position: fixed;
+  bottom: 250px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  letter-spacing: 1px;
+  z-index: 100;
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- Radar -->
+<div id="radarWrapper">
+  <div id="radarLabel">▶ RADAR DOPPLER WSR-88D ◀ KOAX</div>
+  <div id="radarPanel">
+    <canvas id="radarCanvas" width="210" height="210"></canvas>
+  </div>
+</div>
+
+<!-- Alert buttons -->
+<div id="alertPanel">
+  <button class="alert-btn btn-watch"     id="btnWatch"     onclick="issueAlert('WATCH')">⚠ VEILLE TORNADE</button>
+  <button class="alert-btn btn-warning"   id="btnWarning"   onclick="issueAlert('WARNING')">🌪 ALERTE TORNADE</button>
+  <button class="alert-btn btn-emergency" id="btnEmergency" onclick="issueAlert('EMERGENCY')">🚨 URGENCE ABSOLUE</button>
+</div>
+
+<!-- Phase indicator -->
+<div id="phaseBox">
+  <div id="phaseText">SURVEILLANCE ACTIVE</div>
+  <div id="scoreText">Vies sauvées: 0 &nbsp;|&nbsp; Score: 0</div>
+</div>
+
+<!-- Instruments -->
+<div id="instruments">
+  <h3>📡 INSTRUMENTS — KOAX</h3>
+  <div class="inst-row"><span>Pression</span><span class="inst-val" id="iPress">1013 hPa</span></div>
+  <div class="inst-row"><span>Vent</span><span class="inst-val" id="iWind">18 km/h</span></div>
+  <div class="inst-row"><span>Direction</span><span class="inst-val" id="iDir">SSO</span></div>
+  <div class="inst-row"><span>Visibilité</span><span class="inst-val" id="iVis">12 km</span></div>
+  <div class="inst-row"><span>T° rosée</span><span class="inst-val" id="iDew">19°C</span></div>
+  <div class="inst-row"><span>CAPE</span><span class="inst-val" id="iCAPE">2840 J/kg</span></div>
+  <div class="inst-row"><span>Cisaillement</span><span class="inst-val" id="iShear">54 kts</span></div>
+  <div class="inst-row"><span>Rotation</span><span class="inst-val" id="iRot" style="color:#f5c400">— m/s</span></div>
+</div>
+
+<!-- EF scale -->
+<div id="efPanel">
+  <h3>ÉCHELLE DE FUJITA (EF)</h3>
+  <div id="efBarOuter"><div id="efBar"></div></div>
+  <div id="efText">Aucune tornade détectée</div>
+  <div id="distText">Distance: —</div>
+</div>
+
+<!-- Radio log -->
+<div id="radioLog">
+  <div class="log-title">📻 COMMUNICATIONS — KOAX NWS</div>
+</div>
+
+<!-- Vignette + flash -->
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="xhair"></div>
+<div id="lockHint">🖱 CLIQUER+GLISSER pour pivoter · touches 1 / 2 / 3 pour alertes rapides</div>
+
+<!-- Intro screen -->
+<div id="intro">
+  <h1>🌪 STORM WATCH</h1>
+  <div class="sub">SIMULATEUR DE TOUR DE CONTRÔLE MÉTÉO — STATION KOAX</div>
+  <div class="instruct">
+    Vous êtes météorologue de garde au NWS de Lincoln, Nebraska.<br>
+    Une outbreak de tornades se développe au sud-ouest.<br>
+    Surveillez le radar Doppler, analysez les supercellules<br>
+    et émettez des alertes au bon moment pour sauver des vies.<br><br>
+    <strong>CLIQUER + GLISSER</strong> — Regarder autour (vue panoramique)<br>
+    <strong>BOUTONS ou touches 1 / 2 / 3</strong> — Émettre les alertes<br>
+    <strong>RADAR</strong> (bas-gauche) — Suivez la cellule tornадique<br><br>
+    <em style="color:#888">La tornade approche depuis le sud-ouest — regardez par la fenêtre!</em>
+  </div>
+  <button id="startBtn" onclick="startGame()">▶ LANCER LA SIMULATION</button>
+</div>
+
+<!-- Game over -->
+<div id="gameover">
+  <h1>SIMULATION TERMINÉE</h1>
+  <div id="goScore"></div>
+  <div id="goDetails"></div>
+  <button id="replayBtn" onclick="location.reload()">↺ RECOMMENCER</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script>
+'use strict';
+
+/* ============================================================
+   STORM WATCH — Tour de contrôle météo
+   Simulateur de tornade réaliste (HTML5 / Three.js)
+   ============================================================ */
+
+// --------------- constants ---------------
+// Tornado starts 8 km to the SW, moves NE directly toward (then past) the station.
+// With camera facing SW (yaw=135°), the funnel appears dead-center on screen.
+const TORNADO_INIT_X   = -5700;
+const TORNADO_INIT_Z   =  5700;
+const TORNADO_SPD_X    =  18;   // m/s (moving east)
+const TORNADO_SPD_Z    = -18;   // m/s (moving north)
+const EF_RATE          = 0.065; // EF per second after touchdown
+const RAIN_COUNT       = 3200;
+const TORNADO_PTCL     = 1600;
+const DEBRIS_PTCL      = 500;
+const EF_LABELS = [
+  'EF0 — Léger (105–137 km/h)',
+  'EF1 — Modéré (138–177 km/h)',
+  'EF2 — Significatif (178–217 km/h)',
+  'EF3 — Sévère (218–266 km/h)',
+  'EF4 — Dévastateur (267–322 km/h)',
+  'EF5 — Incroyable (> 322 km/h)',
+];
+const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+
+// --------------- game state ---------------
+const G = {
+  running : false,
+  phase   : 'PRE',   // PRE WATCH WARNING IMMINENT IMPACT OVER
+  t       : 0,
+  score   : 0,
+  saved   : 0,
+  atRisk  : 28000,
+  alerts  : { WATCH: false, WARNING: false, EMERGENCY: false },
+  onGround: false,
+  dist    : 15000,
+  ef      : 0,
+  maxEF   : 0,
+  pressure: 1013,
+  wind    : 18,
+  vis     : 12,
+  rot     : 0,
+  yaw     : 0,
+  pitch   : 0,
+  locked  : false,
+  shake   : 0,
+  lightT  : 0,
+  nextLight: 6,
+};
+
+// --------------- Three.js globals ---------------
+let renderer, scene, camera, clock;
+let tornadoGroup, tornadoPts, debrisPts, rainPts;
+let ambLight, sunLight, torLight, flashLight;
+
+// --------------- Radar globals ---------------
+let rCtx, rAngle = 0;
+const RADAR_CX = 105, RADAR_CY = 105, RADAR_R = 102;
+const storms = [
+  { x:28, y:170, vx:1.3, vy:-0.75, intens:0.2, isSuperCell:true,  confirmed:false, rot:0 },
+  { x:14, y:118, vx:0.9, vy:-0.55, intens:0.12, isSuperCell:false, confirmed:false, rot:0 },
+  { x:58, y:195, vx:1.0, vy:-0.65, intens:0.18, isSuperCell:false, confirmed:false, rot:0 },
+];
+
+// --------------- Init ---------------
+function init() {
+  initGL();
+  buildScene();
+  buildRadar();
+  setupPointerLock();
+  clock = new THREE.Clock();
+}
+
+function initGL() {
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.75;
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x080510, 0.000075);
+
+  camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.5, 50000);
+  camera.position.set(0, 3.2, 1.5);
+  camera.rotation.order = 'YXZ';
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+// --------------- Scene ---------------
+function buildScene() {
+  /* Lights */
+  ambLight  = new THREE.AmbientLight(0x14101c, 1.2);
+  sunLight  = new THREE.DirectionalLight(0x2a2050, 0.6);
+  sunLight.position.set(-200, 400, -100);
+  sunLight.castShadow = true;
+  torLight  = new THREE.PointLight(0x44ff88, 0, 8000);
+  torLight.position.set(0, 400, 0);
+  flashLight = new THREE.PointLight(0x9999ff, 0, 25000);
+  flashLight.position.set(0, 1800, -3000);
+  scene.add(ambLight, sunLight, torLight, flashLight);
+
+  makeSky();
+  makeGround();
+  makeInterior();
+  makeTornado();
+  makeRain();
+  makeClouds();
+}
+
+function makeSky() {
+  const geo = new THREE.SphereGeometry(42000, 24, 12);
+  geo.scale(-1, 1, 1);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      topColor:    { value: new THREE.Color(0x030208) },
+      bottomColor: { value: new THREE.Color(0x180c08) },
+    },
+    vertexShader: `
+      varying float vY;
+      void main() {
+        vY = normalize((modelMatrix * vec4(position,1.0)).xyz).y;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+      }`,
+    fragmentShader: `
+      uniform vec3 topColor, bottomColor;
+      varying float vY;
+      void main() {
+        float t = pow(clamp(vY * 0.5 + 0.5, 0.0, 1.0), 0.4);
+        gl_FragColor = vec4(mix(bottomColor, topColor, t), 1.0);
+      }`,
+    side: THREE.BackSide,
+  });
+  scene.add(new THREE.Mesh(geo, mat));
+}
+
+function makeGround() {
+  const geo = new THREE.PlaneGeometry(55000, 55000, 80, 80);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    pos.setZ(i, Math.sin(x * 0.0018) * 6 + Math.cos(y * 0.0025) * 4 + Math.sin(x*y*0.000001)*2);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshPhongMaterial({ color: 0x28180a });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+
+  addFields();
+  addTrees();
+  addFarms();
+  addRoads();
+}
+
+function addFields() {
+  const mat = new THREE.MeshPhongMaterial({ color: 0x1c2500 });
+  [[1600,-1200,900,650],[-900,2100,650,420],[3100,600,1400,900],[-2100,-600,1100,750]].forEach(
+    ([x,z,w,d]) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, 0.15, z);
+      scene.add(m);
+    }
+  );
+}
+
+function addTrees() {
+  const tMat = new THREE.MeshPhongMaterial({ color: 0x3a1f0c });
+  const lMat = new THREE.MeshPhongMaterial({ color: 0x112200 });
+  for (let i = 0; i < 70; i++) {
+    const x = (Math.random()-0.5)*12000, z = (Math.random()-0.5)*12000;
+    if (Math.abs(x)<30 && Math.abs(z)<30) continue;
+    const h = 5 + Math.random()*9;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.45,h,5), tMat);
+    trunk.position.set(x, h/2, z);
+    scene.add(trunk);
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(2.2+Math.random()*1.5, 7+Math.random()*4, 6), lMat);
+    crown.position.set(x, h+2.5, z);
+    scene.add(crown);
+  }
+}
+
+function addFarms() {
+  const wMat = new THREE.MeshPhongMaterial({ color: 0x7a6a50 });
+  const rMat = new THREE.MeshPhongMaterial({ color: 0x7c1818 });
+  const sMat = new THREE.MeshPhongMaterial({ color: 0xbbaa99 });
+  [[2200,-1600],[4800,1200],[-3200,2700],[1100,3300],[-1700,-3100],[6000,-500],[-5000,1500]].forEach(
+    ([x,z]) => {
+      const w=18+Math.random()*18, h=5+Math.random()*5, d=12+Math.random()*14;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wMat);
+      body.position.set(x, h/2, z); body.castShadow=true; scene.add(body);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*0.75,4,4), rMat);
+      roof.position.set(x, h+2, z); roof.rotation.y=Math.PI/4; scene.add(roof);
+      const sr=2+Math.random()*2.5, sh=14+Math.random()*10;
+      const silo = new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,sh,8), sMat);
+      silo.position.set(x+w/2+sr+3, sh/2, z); scene.add(silo);
+    }
+  );
+}
+
+function addRoads() {
+  const mat = new THREE.MeshPhongMaterial({ color: 0x181818 });
+  const r1 = new THREE.Mesh(new THREE.PlaneGeometry(50000,7), mat);
+  r1.rotation.x = -Math.PI/2; r1.position.set(0,0.2,600); scene.add(r1);
+  const r2 = new THREE.Mesh(new THREE.PlaneGeometry(7,50000), mat);
+  r2.rotation.x = -Math.PI/2; r2.position.set(600,0.2,0); scene.add(r2);
+}
+
+function makeInterior() {
+  // In Three.js, camera looks toward -Z.
+  // Camera-child Z must be NEGATIVE to appear in front of the view.
+  // FOV=72°: at z=-4, visible width ≈ ±2.9 wide, ±1.65 tall (16:9).
+
+  const fMat    = new THREE.MeshPhongMaterial({ color: 0x120c06 });
+  const sillMat = new THREE.MeshPhongMaterial({ color: 0x201408 });
+  const deskMat = new THREE.MeshPhongMaterial({ color: 0x0d0806 });
+
+  // ---- Window frame (z=-4, 4 m in front) ----
+  // Left pillar
+  addCamObj(new THREE.BoxGeometry(0.22, 4.2, 0.3), fMat, [-3.1, 0.35, -4.0]);
+  // Right pillar
+  addCamObj(new THREE.BoxGeometry(0.22, 4.2, 0.3), fMat, [ 3.1, 0.35, -4.0]);
+  // Top beam
+  addCamObj(new THREE.BoxGeometry(6.44, 0.22, 0.3), fMat, [0,  2.25, -4.0]);
+  // Sill / bottom frame
+  addCamObj(new THREE.BoxGeometry(6.44, 0.28, 0.65), sillMat, [0, -1.55, -3.75]);
+  // Center vertical divider
+  addCamObj(new THREE.BoxGeometry(0.12, 3.6, 0.24), fMat, [0,  0.35, -3.98]);
+  // Horizontal divider bar
+  addCamObj(new THREE.BoxGeometry(6.44, 0.12, 0.24), fMat, [0,  0.35, -3.98]);
+
+  // ---- Desk (z=-2.2, slightly in front, below eye) ----
+  addCamObj(new THREE.BoxGeometry(5.5, 0.14, 2.4), deskMat, [0, -1.65, -2.2]);
+
+  // ---- Monitors ----
+  const monMat = new THREE.MeshPhongMaterial({ color: 0x0c0c0c });
+  const scrMat = new THREE.MeshPhongMaterial({ color: 0x001a00, emissive: 0x002a00, emissiveIntensity: 0.9 });
+  for (const ox of [-1.15, 1.15]) {
+    addCamObj(new THREE.BoxGeometry(0.88, 0.54, 0.07), monMat, [ox, -1.22, -2.4]);
+    addCamObj(new THREE.PlaneGeometry(0.75, 0.43), scrMat, [ox, -1.22, -2.36]);
+  }
+
+  // ---- Keyboard ----
+  addCamObj(new THREE.BoxGeometry(0.65, 0.04, 0.22),
+    new THREE.MeshPhongMaterial({ color: 0x060606 }), [0, -1.60, -1.85]);
+
+  // ---- Side instrument panels ----
+  const panMat = new THREE.MeshPhongMaterial({ color: 0x0a0a14, emissive: 0x04041c, emissiveIntensity: 0.5 });
+  addCamObj(new THREE.PlaneGeometry(1.8, 1.6), panMat, [-4.2,  0.5, -2.8]);
+  addCamObj(new THREE.PlaneGeometry(1.8, 1.6), panMat, [ 4.2,  0.5, -2.8]);
+
+  scene.add(camera);
+}
+
+function addCamObj(geo, mat, pos) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(...pos);
+  camera.add(m);
+}
+
+// --------------- Tornado ---------------
+function makeTornado() {
+  tornadoGroup = new THREE.Group();
+  tornadoGroup.position.set(TORNADO_INIT_X, 0, TORNADO_INIT_Z);
+  scene.add(tornadoGroup);
+
+  // ---- Funnel particles ----
+  const N = TORNADO_PTCL;
+  const fp = new Float32Array(N*3), fc = new Float32Array(N*3), fs = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const t  = i / N;
+    const ht = t * 1400;
+    const r  = 25 + t*t*500 + (Math.random()-0.5)*30;
+    const a  = (i / 15) * Math.PI*2 + t * Math.PI*6;
+    fp[i*3]   = Math.cos(a)*r + (Math.random()-0.5)*r*0.25;
+    fp[i*3+1] = ht;
+    fp[i*3+2] = Math.sin(a)*r + (Math.random()-0.5)*r*0.25;
+    const br = 0.25 + t*0.45;
+    fc[i*3] = br*0.55; fc[i*3+1] = br*0.48; fc[i*3+2] = br*0.65;
+    fs[i] = 7 + Math.random()*14;
+  }
+  const fGeo = new THREE.BufferGeometry();
+  fGeo.setAttribute('position', new THREE.BufferAttribute(fp, 3));
+  fGeo.setAttribute('color',    new THREE.BufferAttribute(fc, 3));
+  tornadoPts = new THREE.Points(fGeo, new THREE.PointsMaterial({
+    size: 22, vertexColors: true, transparent: true, opacity: 0,
+    sizeAttenuation: true, depthWrite: false,
+  }));
+  tornadoGroup.add(tornadoPts);
+
+  // ---- Debris ----
+  const D = DEBRIS_PTCL;
+  const dp = new Float32Array(D*3), dc = new Float32Array(D*3);
+  for (let i = 0; i < D; i++) {
+    const a = Math.random()*Math.PI*2, r = 40+Math.random()*280;
+    dp[i*3]   = Math.cos(a)*r;
+    dp[i*3+1] = Math.random()*200;
+    dp[i*3+2] = Math.sin(a)*r;
+    dc[i*3] = 0.28+Math.random()*0.18; dc[i*3+1] = 0.17+Math.random()*0.1; dc[i*3+2] = 0.05+Math.random()*0.05;
+  }
+  const dGeo = new THREE.BufferGeometry();
+  dGeo.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+  dGeo.setAttribute('color',    new THREE.BufferAttribute(dc, 3));
+  debrisPts = new THREE.Points(dGeo, new THREE.PointsMaterial({
+    size: 9, vertexColors: true, transparent: true, opacity: 0, sizeAttenuation: true,
+  }));
+  tornadoGroup.add(debrisPts);
+}
+
+// --------------- Rain ---------------
+function makeRain() {
+  const N = RAIN_COUNT;
+  const rp = new Float32Array(N*3);
+  for (let i = 0; i < N; i++) {
+    rp[i*3]   = (Math.random()-0.5)*1200;
+    rp[i*3+1] = Math.random()*400;
+    rp[i*3+2] = (Math.random()-0.5)*1200;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(rp, 3));
+  rainPts = new THREE.Points(geo, new THREE.PointsMaterial({
+    color: 0x7a99bb, size: 0.7, transparent: true, opacity: 0.35,
+    sizeAttenuation: true, depthWrite: false,
+  }));
+  scene.add(rainPts);
+}
+
+// --------------- Clouds ---------------
+function makeClouds() {
+  const cMat = new THREE.MeshPhongMaterial({ color: 0x0d0c18, transparent: true, opacity: 0.82, side: THREE.DoubleSide, depthWrite: false });
+  // Clouds spread around, but mainly toward SW where the storm approaches (positive Z, negative X)
+  const positions = [
+    [-2800, 880, 3800],  // SW (directly toward tornado origin)
+    [-5000, 860, 5200],  // far SW (storm corridor)
+    [-1200, 820, 2800],  // S-SW
+    [ 2000, 800, 3500],  // SE (anvil spreading)
+    [-4000, 900, 7000],  // far SW (storm anvil)
+    [ 3000, 920,-3500],  // NE (spreading anvil)
+    [    0, 980,-5000],  // N (anvil outflow)
+  ];
+  positions.forEach(([x,y,z]) => {
+    const g = new THREE.Group();
+    for (let i = 0; i < 7; i++) {
+      const r = 280+Math.random()*420;
+      const blob = new THREE.Mesh(new THREE.SphereGeometry(r,7,5), cMat);
+      blob.position.set((Math.random()-0.5)*600,(Math.random()-0.5)*160,(Math.random()-0.5)*350);
+      blob.scale.y = 0.35+Math.random()*0.25;
+      g.add(blob);
+    }
+    g.position.set(x,y,z);
+    scene.add(g);
+  });
+
+  // Rotating wall cloud above tornado
+  const wc = new THREE.Group();
+  const wMat = new THREE.MeshPhongMaterial({ color:0x04040f, transparent:true, opacity:0.92, side:THREE.DoubleSide, depthWrite:false });
+  for (let i = 0; i < 12; i++) {
+    const r = 380+Math.random()*320;
+    const blob = new THREE.Mesh(new THREE.SphereGeometry(r,7,5), wMat);
+    blob.position.set((Math.random()-0.5)*900,(Math.random()-0.5)*220,(Math.random()-0.5)*600);
+    blob.scale.y = 0.28+Math.random()*0.18;
+    wc.add(blob);
+  }
+  wc.position.set(0, 1300, 0);
+  tornadoGroup.add(wc);
+}
+
+// --------------- Radar ---------------
+function buildRadar() {
+  rCtx = document.getElementById('radarCanvas').getContext('2d');
+}
+
+function drawRadar() {
+  const ctx = rCtx;
+  const cx = RADAR_CX, cy = RADAR_CY, R = RADAR_R;
+
+  ctx.clearRect(0, 0, 210, 210);
+
+  // Clip to circle
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.clip();
+
+  // Background
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 210, 210);
+
+  // Subtle grid lines
+  ctx.strokeStyle = 'rgba(0,255,65,0.08)'; ctx.lineWidth = 1;
+  for (let i = -4; i <= 4; i++) {
+    ctx.beginPath(); ctx.moveTo(cx + i*25, cy-R); ctx.lineTo(cx + i*25, cy+R); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx-R, cy + i*25); ctx.lineTo(cx+R, cy + i*25); ctx.stroke();
+  }
+
+  // Draw storms
+  storms.forEach(s => {
+    if (s.x < -10 || s.x > 220 || s.y < -10 || s.y > 220) return;
+    const inp = s.intens;
+
+    // Cell body gradient
+    const sz = 32 + inp*28;
+    const gr = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, sz);
+    if (inp > 0.72) {
+      gr.addColorStop(0,   `rgba(200,0,255,${inp})`);
+      gr.addColorStop(0.25,`rgba(255,0,0,${inp*0.85})`);
+      gr.addColorStop(0.55,`rgba(255,120,0,${inp*0.5})`);
+      gr.addColorStop(1,   'rgba(0,0,0,0)');
+    } else if (inp > 0.48) {
+      gr.addColorStop(0,   `rgba(255,10,10,${inp})`);
+      gr.addColorStop(0.35,`rgba(255,165,0,${inp*0.75})`);
+      gr.addColorStop(0.65,`rgba(0,200,0,${inp*0.4})`);
+      gr.addColorStop(1,   'rgba(0,0,0,0)');
+    } else if (inp > 0.28) {
+      gr.addColorStop(0,   `rgba(255,210,0,${inp+0.1})`);
+      gr.addColorStop(0.4, `rgba(0,220,0,${inp*0.7})`);
+      gr.addColorStop(1,   'rgba(0,0,0,0)');
+    } else {
+      gr.addColorStop(0,   `rgba(0,200,60,${inp+0.2})`);
+      gr.addColorStop(0.6, `rgba(0,100,20,${inp*0.5})`);
+      gr.addColorStop(1,   'rgba(0,0,0,0)');
+    }
+    ctx.beginPath(); ctx.arc(s.x, s.y, sz, 0, Math.PI*2);
+    ctx.fillStyle = gr; ctx.fill();
+
+    // Hook echo for tornadic supercell
+    if (s.isSuperCell && s.intens > 0.38) {
+      ctx.beginPath();
+      ctx.arc(s.x+18, s.y+14, 14, Math.PI*0.5, Math.PI*1.6);
+      ctx.strokeStyle = `rgba(255,60,0,${inp*0.85})`;
+      ctx.lineWidth = 7; ctx.stroke();
+    }
+
+    // Velocity couplet (doppler)
+    if (s.isSuperCell && s.rot > 0.15) {
+      // Inbound (green)
+      ctx.beginPath(); ctx.arc(s.x-9, s.y, 7, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(0,255,120,${s.rot*0.9})`; ctx.fill();
+      // Outbound (red)
+      ctx.beginPath(); ctx.arc(s.x+9, s.y, 7, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,40,40,${s.rot*0.9})`; ctx.fill();
+    }
+
+    // Tornado symbol
+    if (s.confirmed && G.onGround) {
+      ctx.beginPath(); ctx.arc(s.x+18, s.y+16, 4.5, 0, Math.PI*2);
+      ctx.fillStyle = '#ff0000'; ctx.fill();
+      ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  });
+
+  // Radar sweep beam
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rAngle);
+  const sweep = ctx.createLinearGradient(0, 0, R, 0);
+  sweep.addColorStop(0,   'rgba(0,255,65,0.5)');
+  sweep.addColorStop(0.6, 'rgba(0,255,65,0.15)');
+  sweep.addColorStop(1,   'rgba(0,255,65,0)');
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0, 0, R, -0.18, 0.18); ctx.closePath();
+  ctx.fillStyle = sweep; ctx.fill();
+  ctx.restore();
+
+  ctx.restore(); // unclip
+
+  // Range rings
+  [25,50,75].forEach(km => {
+    const rr = R * km / 105;
+    ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(0,255,65,0.18)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = 'rgba(0,255,65,0.45)'; ctx.font = '7px Courier New';
+    ctx.fillText(km+'km', cx+rr+2, cy-2);
+  });
+
+  // Station dot
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
+  ctx.fillStyle = '#00ff41'; ctx.fill();
+  ctx.fillStyle = 'rgba(0,255,65,0.7)'; ctx.font = '7px Courier New';
+  ctx.fillText('KOAX', cx+5, cy-5);
+
+  // Compass
+  ctx.fillStyle = 'rgba(0,255,65,0.75)'; ctx.font = 'bold 9px Courier New';
+  ctx.fillText('N', cx-4, 13);
+  ctx.fillText('S', cx-4, 205);
+  ctx.fillText('E', 198, cy+4);
+  ctx.fillText('O',   3, cy+4);
+
+  // Border
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(0,255,65,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+// --------------- Alert Logic ---------------
+function issueAlert(type) {
+  if (!G.running || G.alerts[type]) return;
+  G.alerts[type] = true;
+  document.getElementById('btn'+type.charAt(0)+type.slice(1).toLowerCase()).classList.add('fired');
+
+  const dist = G.dist;
+  let lives = 0, msg = '', cls = '';
+
+  if (type === 'WATCH') {
+    document.getElementById('btnWatch').classList.add('fired');
+    if (dist > 9000)      { lives = Math.floor(G.atRisk*0.10); msg = '⚠ VEILLE émise — population en état d\'alerte préventive. +'+lives+' vies.'; G.score+=120; }
+    else if (dist > 4500) { lives = Math.floor(G.atRisk*0.05); msg = '⚠ VEILLE émise tardivement. Quelques évacuations. +'+lives+' vies.'; G.score+=50; }
+    else                  { msg = '⚠ VEILLE trop tardive — impact quasi imminent. Peu d\'effet.'; lives=0; }
+    cls = '';
+  }
+  else if (type === 'WARNING') {
+    document.getElementById('btnWarning').classList.add('fired');
+    if (!G.alerts.WATCH) {
+      lives = Math.floor(G.atRisk*0.09);
+      msg = '🌪 ALERTE sans veille préalable — confusion partielle. +'+lives+' vies.'; cls='alert'; G.score+=180;
+    } else if (dist > 6000) {
+      lives = Math.floor(G.atRisk*0.28);
+      msg = '🌪 ALERTE TORNADE — excellente anticipation! Évacuation massive. +'+lives+' vies.'; cls='alert'; G.score+=600;
+    } else if (dist > 2500) {
+      lives = Math.floor(G.atRisk*0.16);
+      msg = '🌪 ALERTE TORNADE émise. Évacuations en cours. +'+lives+' vies.'; cls='alert'; G.score+=280;
+    } else {
+      lives = Math.floor(G.atRisk*0.05);
+      msg = '🌪 ALERTE trop tardive. Évacuation partielle seulement. +'+lives+' vies.'; cls='alert'; G.score+=80;
+    }
+  }
+  else if (type === 'EMERGENCY') {
+    document.getElementById('btnEmergency').classList.add('fired');
+    if (G.alerts.WARNING && dist < 4000 && dist > 800) {
+      lives = Math.floor(G.atRisk*0.09);
+      msg = '🚨 URGENCE ABSOLUE — abri immédiat! +'+lives+' vies.'; cls='danger'; G.score+=350;
+    } else if (!G.alerts.WARNING) {
+      lives = Math.floor(G.atRisk*0.02);
+      msg = '🚨 URGENCE sans alerte préalable — panique! +'+lives+' vies.'; cls='danger'; G.score+=40;
+    } else {
+      lives = Math.floor(G.atRisk*0.04);
+      msg = '🚨 URGENCE émise — complète les protocoles. +'+lives+' vies.'; cls='danger'; G.score+=150;
+    }
+  }
+
+  G.saved += lives;
+  addLog(msg, cls);
+  refreshScore();
+}
+
+function addLog(text, cls='') {
+  const log = document.getElementById('radioLog');
+  const d = document.createElement('div');
+  d.className = 'radio-msg ' + cls;
+  const m = Math.floor(G.t/60), s = Math.floor(G.t%60);
+  d.textContent = `[${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}] ${text}`;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+function refreshScore() {
+  document.getElementById('scoreText').textContent =
+    `Vies sauvées: ${G.saved.toLocaleString('fr-FR')}  |  Score: ${G.score.toLocaleString('fr-FR')}`;
+}
+
+// --------------- Camera Controls (drag + keyboard) ---------------
+function setupPointerLock() {
+  let dragging = false, lastX = 0, lastY = 0;
+  const canvas = document.getElementById('gameCanvas');
+
+  canvas.addEventListener('mousedown', e => {
+    if (!G.running || e.button !== 0) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.style.cursor = 'none';
+  });
+  window.addEventListener('mouseup',   () => { dragging = false; canvas.style.cursor = 'crosshair'; });
+  window.addEventListener('mousemove', e => {
+    if (!dragging || !G.running) return;
+    G.yaw   -= (e.clientX - lastX) * 0.003;
+    G.pitch -= (e.clientY - lastY) * 0.003;
+    G.pitch  = Math.max(-1.1, Math.min(1.1, G.pitch));
+    camera.rotation.y = G.yaw;
+    camera.rotation.x = G.pitch;
+    lastX = e.clientX; lastY = e.clientY;
+  });
+
+  // Touch support (Chromebook trackpad two-finger drag)
+  canvas.addEventListener('touchstart', e => {
+    if (!G.running) return;
+    const t = e.touches[0];
+    dragging = true; lastX = t.clientX; lastY = t.clientY;
+  });
+  window.addEventListener('touchend',   () => { dragging = false; });
+  window.addEventListener('touchmove',  e => {
+    if (!dragging || !G.running) return;
+    const t = e.touches[0];
+    G.yaw   -= (t.clientX - lastX) * 0.003;
+    G.pitch -= (t.clientY - lastY) * 0.003;
+    G.pitch  = Math.max(-1.1, Math.min(1.1, G.pitch));
+    camera.rotation.y = G.yaw;
+    camera.rotation.x = G.pitch;
+    lastX = t.clientX; lastY = t.clientY;
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', e => {
+    if (!G.running) return;
+    if (e.key === '1') issueAlert('WATCH');
+    if (e.key === '2') issueAlert('WARNING');
+    if (e.key === '3') issueAlert('EMERGENCY');
+  });
+}
+
+// --------------- Start ---------------
+function startGame() {
+  document.getElementById('intro').style.display = 'none';
+  G.running = true;
+
+  // Face SW so the approaching tornado is dead-center on screen
+  G.yaw = Math.PI * 0.75;
+  camera.rotation.y = G.yaw;
+
+  setTimeout(() => addLog('Station KOAX en ligne. Surveillance active.'), 400);
+  setTimeout(() => addLog('Atmosphère très instable. CAPE: 2840 J/kg, STP: 4.8'), 2200);
+  setTimeout(() => addLog('⚠ Fort cisaillement vertical: 54 kts sur 0-6 km.'), 4500);
+  setTimeout(() => addLog('Cellules orageuses en développement au SO de KOAX.'), 7000);
+  setTimeout(() => addLog('SPC: environnement favorable aux supercellules tornadiques.'), 10000);
+
+  loop();
+}
+
+// --------------- Main Loop ---------------
+function loop() {
+  if (!G.running) return;
+  requestAnimationFrame(loop);
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  G.t += dt;
+
+  tickPhase(dt);
+  tickTornado(dt);
+  tickWeather(dt);
+  tickRadar(dt);
+  tickInstruments();
+  tickCamera(dt);
+
+  renderer.render(scene, camera);
+  drawRadar();
+}
+
+// --------------- Phase ---------------
+function tickPhase(dt) {
+  const t = G.t, d = G.dist;
+
+  if (t > 32 && G.phase === 'PRE') {
+    G.phase = 'WATCH';
+    setPhase('VEILLE ORAGEUSE', '#f5c400');
+    addLog('⚠ Supercellule détectée — rotation naissante au SO. Mésocyclone en formation.', 'alert');
+    storms[0].intens = 0.38; storms[0].rot = 0.3;
+  }
+
+  if (t > 75 && G.phase === 'WATCH') {
+    G.phase = 'WARNING';
+    setPhase('🌪 TORNADE CONFIRMÉE', '#ff5500');
+    G.onGround = true;
+    storms[0].confirmed = true; storms[0].intens = 0.62; storms[0].rot = 0.7;
+    tornadoPts.material.opacity = 0.55;
+    debrisPts.material.opacity = 0.4;
+    torLight.intensity = 0.4;
+    addLog('🌪 TORNADE AU SOL — EF0 et s\'intensifiant! Écho en crochet visible.', 'alert');
+    addLog('Trajectoire: NNE. Vitesse de déplacement: 78 km/h. Rotation: 35 m/s.', 'alert');
+  }
+
+  if (d < 4500 && G.phase === 'WARNING') {
+    G.phase = 'IMMINENT';
+    setPhase('🚨 IMPACT IMMINENT', '#ff0000');
+    storms[0].intens = 0.88; storms[0].rot = 1.0;
+    G.shake = 0.12;
+    addLog('🚨 TORNADE À 5 KM — EF'+Math.min(5,Math.floor(G.ef))+' — DANGER EXTRÊME!', 'danger');
+    addLog('Largeur estimée: '+Math.round(200+G.ef*120)+' m. Vents: '+Math.round(105+G.ef*40)+' km/h.', 'danger');
+  }
+
+  if (d < 300 && G.phase === 'IMMINENT') {
+    G.phase = 'IMPACT';
+    setPhase('💥 IMPACT!', '#ff0000');
+    triggerImpact();
+  }
+}
+
+function setPhase(text, color) {
+  const el = document.getElementById('phaseText');
+  el.textContent = text;
+  el.style.color = color;
+  el.style.textShadow = `0 0 20px ${color}`;
+}
+
+// --------------- Tornado tick ---------------
+function tickTornado(dt) {
+  // Move tornado NNE
+  const mx = Math.sin(G.t * 0.12) * 3.5;
+  const mz = Math.cos(G.t * 0.09) * 2.0;
+  tornadoGroup.position.x += (TORNADO_SPD_X + mx) * dt;
+  tornadoGroup.position.z += (TORNADO_SPD_Z + mz) * dt;
+
+  // Distance from station (origin)
+  const px = tornadoGroup.position.x, pz = tornadoGroup.position.z;
+  G.dist = Math.sqrt(px*px + pz*pz);
+
+  // Funnel rotation + particle rise
+  if (tornadoPts) {
+    tornadoPts.rotation.y -= 1.8 * dt;
+    const pp = tornadoPts.geometry.attributes.position.array;
+    for (let i = 1; i < pp.length; i += 3) {
+      pp[i] += 55 * dt;
+      if (pp[i] > 1400) pp[i] = 0;
+    }
+    tornadoPts.geometry.attributes.position.needsUpdate = true;
+  }
+  if (debrisPts) debrisPts.rotation.y -= 2.5 * dt;
+
+  // EF progression after touchdown
+  if (G.onGround) {
+    const elapsed = G.t - 75;
+    if (elapsed > 0) {
+      G.ef = Math.min(5, elapsed * EF_RATE);
+      G.maxEF = Math.max(G.maxEF, G.ef);
+      updateEF();
+    }
+  }
+
+  // Scale: EF0=1.2 (630m radius/1680m tall), grows to 2.5 at EF5
+  const distF = Math.max(0, 1 - G.dist / 16000);
+  const efF   = 1.2 + G.ef * 0.26;
+  tornadoGroup.scale.setScalar(efF);
+  // Slight atmospheric lean
+  tornadoGroup.rotation.z = 0.04;
+
+  if (tornadoPts) {
+    tornadoPts.material.opacity  = G.onGround ? Math.min(0.95, 0.5 + distF*0.4 + G.ef*0.05) : 0;
+    debrisPts.material.opacity   = G.onGround ? Math.min(0.9,  distF*0.9 + (G.ef > 1.5 ? 0.3 : 0)) : 0;
+  }
+
+  torLight.position.copy(tornadoGroup.position);
+  torLight.position.y = 400;
+  torLight.intensity  = G.onGround ? (0.4 + G.ef*0.12) * distF * 6 : 0;
+
+  document.getElementById('distText').textContent =
+    `Distance: ${G.dist > 1000 ? (G.dist/1000).toFixed(1)+' km' : Math.round(G.dist)+' m'}`;
+}
+
+function updateEF() {
+  const ef = Math.min(5, Math.floor(G.ef));
+  document.getElementById('efBar').style.width = (G.ef/5*100)+'%';
+  document.getElementById('efText').textContent = EF_LABELS[ef];
+  document.getElementById('efText').style.color = ef < 2 ? '#f5c400' : ef < 4 ? '#ff5500' : '#ff0000';
+}
+
+// --------------- Weather tick ---------------
+function tickWeather(dt) {
+  const stormProg = Math.min(1, G.t / 130);
+
+  // Rain animation
+  if (rainPts) {
+    const rp = rainPts.geometry.attributes.position.array;
+    const wDrift = G.onGround ? 0.6 : 0.12;
+    for (let i = 0; i < rp.length; i += 3) {
+      rp[i+1] -= 130 * dt;
+      rp[i]   += wDrift * Math.sin(G.t*0.4) * 35 * dt;
+      rp[i+2] += wDrift * 22 * dt;
+      if (rp[i+1] < 0) {
+        rp[i+1] = 370 + Math.random()*40;
+        rp[i]   = (Math.random()-0.5)*1200;
+        rp[i+2] = (Math.random()-0.5)*1200;
+      }
+    }
+    rainPts.geometry.attributes.position.needsUpdate = true;
+    rainPts.material.opacity = 0.28 + stormProg*0.38;
+  }
+
+  // Lightning
+  G.lightT += dt;
+  if (G.lightT > G.nextLight) {
+    G.lightT = 0;
+    G.nextLight = 1.8 + Math.random() * (G.onGround ? 3.5 : 9);
+    doLightning();
+  }
+
+  // Progressive darkening
+  ambLight.intensity = Math.max(0.15, 1.2 - stormProg*0.65);
+  scene.fog.density  = 0.000075 + (1 - G.vis/12)*0.00008;
+}
+
+function doLightning() {
+  flashLight.position.set((Math.random()-0.5)*9000, 900+Math.random()*1200, -1500+(Math.random()-0.5)*4000);
+  flashLight.intensity = 8 + Math.random()*14;
+  const flashEl = document.getElementById('flash');
+  flashEl.style.opacity = (0.04 + Math.random()*0.08).toFixed(3);
+  setTimeout(() => { flashLight.intensity = 0; flashEl.style.opacity = '0'; }, 55);
+  setTimeout(() => {
+    flashLight.intensity = 4 + Math.random()*7;
+    flashEl.style.opacity = (0.02+Math.random()*0.05).toFixed(3);
+  }, 90);
+  setTimeout(() => { flashLight.intensity = 0; flashEl.style.opacity = '0'; }, 170);
+  ambLight.intensity += 0.5;
+  setTimeout(() => ambLight.intensity -= 0.5, 90);
+}
+
+// --------------- Instruments tick ---------------
+function tickInstruments() {
+  const t = G.t, d = G.dist, sp = Math.min(1, t/130);
+
+  // Pressure
+  G.pressure = 1013 - sp*22 - (G.onGround ? (1-Math.min(1,d/14000))*28 : 0) + Math.sin(t*0.4)*0.4;
+  setInst('iPress', Math.round(G.pressure)+' hPa', G.pressure < 990 ? 'danger' : G.pressure < 1000 ? '' : '');
+
+  // Wind
+  const windNear = G.onGround ? (1-Math.min(1,d/10000))*90 : 0;
+  G.wind = 18 + sp*45 + windNear + Math.sin(t*1.1)*6;
+  setInst('iWind', Math.round(G.wind)+' km/h', G.wind > 120 ? 'critical' : G.wind > 70 ? 'danger' : '');
+
+  // Direction
+  const dirIdx = Math.floor(((t*0.08) % COMPASS.length + COMPASS.length) % COMPASS.length);
+  setInst('iDir', COMPASS[dirIdx]);
+
+  // Visibility
+  G.vis = Math.max(0.05, 12 - sp*8 - (G.onGround ? (1-Math.min(1,d/14000))*5 : 0));
+  const visStr = G.vis >= 1 ? (Math.round(G.vis*10)/10)+' km' : Math.round(G.vis*1000)+' m';
+  setInst('iVis', visStr, G.vis < 0.5 ? 'critical' : G.vis < 2 ? 'danger' : '');
+
+  // Dew point
+  setInst('iDew', (19 + Math.sin(t*0.07)*0.5).toFixed(1)+'°C');
+
+  // CAPE
+  setInst('iCAPE', Math.round(2840+sp*280-Math.random()*15)+' J/kg', 'danger');
+
+  // Shear
+  setInst('iShear', Math.round(54+sp*18)+' kts', 'danger');
+
+  // Rotation
+  if (G.onGround) {
+    G.rot = 35 + G.ef*16 + Math.sin(t*0.7)*5;
+    setInst('iRot', Math.round(G.rot)+' m/s', G.rot > 60 ? 'critical' : 'danger');
+  } else if (t > 32) {
+    G.rot = Math.min(28, (t-32)*0.55) + Math.sin(t*0.4)*3;
+    setInst('iRot', Math.round(G.rot)+' m/s', G.rot > 15 ? 'danger' : '');
+  }
+}
+
+function setInst(id, val, cls='') {
+  const el = document.getElementById(id);
+  el.textContent = val;
+  el.className = 'inst-val' + (cls ? ' '+cls : '');
+}
+
+// --------------- Radar tick ---------------
+function tickRadar(dt) {
+  rAngle += dt * 1.4;
+  storms.forEach(s => { s.x += s.vx*dt*0.5; s.y += s.vy*dt*0.5; });
+  if (G.t > 32)  { storms[0].intens = Math.min(1, 0.35 + (G.t-32)/110); }
+  if (G.onGround){ storms[0].rot    = Math.min(1, 0.55 + G.ef*0.09); }
+}
+
+// --------------- Camera shake ---------------
+function tickCamera(dt) {
+  if (G.shake > 0) {
+    const nearFact = Math.max(0, 1 - G.dist/4000);
+    const s = G.shake * nearFact;
+    if (s > 0.01) {
+      camera.position.x = (Math.random()-0.5)*s*0.12;
+      camera.position.y = 3.2 + (Math.random()-0.5)*s*0.07;
+      camera.position.z = 1.5 + (Math.random()-0.5)*s*0.06;
+    } else {
+      camera.position.set(0, 3.2, 1.5);
+    }
+  }
+}
+
+// --------------- Impact ---------------
+function triggerImpact() {
+  G.shake = 1.5;
+  tornadoPts.material.opacity = 0.98;
+  debrisPts.material.opacity  = 0.98;
+
+  addLog('💥 IMPACT DIRECT! Station sous attaque! Résistez!', 'danger');
+  addLog('💥 Vents: '+Math.round(G.wind)+' km/h — Structures endommagées!', 'danger');
+
+  // Strobe effect
+  let n = 0;
+  const strobe = setInterval(() => {
+    ambLight.intensity = n%2===0 ? 3.5 : 0.08;
+    document.getElementById('flash').style.opacity = n%2===0 ? '0.18' : '0';
+    n++;
+    if (n > 14) { clearInterval(strobe); ambLight.intensity = 0.18; document.getElementById('flash').style.opacity='0'; }
+  }, 140);
+
+  setTimeout(() => addLog('Passage de la tornade. Station partiellement endommagée. Émetteur actif.'), 4000);
+  setTimeout(() => { addLog('Tornade s\'éloigne vers NNE. Dommages en cours d\'évaluation.'); G.shake = 0.2; }, 7000);
+  setTimeout(() => endGame(), 11000);
+}
+
+// --------------- End Game ---------------
+function endGame() {
+  if (G.phase === 'OVER') return;
+  G.phase = 'OVER';
+  G.running = false;
+
+  G.score += Math.floor(G.t) * 2;
+  const pct = G.saved / G.atRisk;
+  const grade = pct > 0.90 ? 'A+' : pct > 0.74 ? 'A' : pct > 0.58 ? 'B' : pct > 0.38 ? 'C' : pct > 0.22 ? 'D' : 'F';
+  const gradeColor = (grade==='A+'||grade==='A') ? '#00ff41' : (grade==='B'||grade==='C') ? '#f5c400' : '#ff5500';
+  const efMax = Math.min(5, Math.floor(G.maxEF));
+  const efNames = ['EF0','EF1','EF2','EF3','EF4','EF5'];
+  const alertCount = Object.values(G.alerts).filter(Boolean).length;
+
+  const messages = {
+    'A+': 'Performance exemplaire — protocoles parfaitement respectés.',
+    'A' : 'Excellent travail. Alertes bien calibrées.',
+    'B' : 'Bon travail. Quelques alertes tardives.',
+    'C' : 'Performance correcte. Meilleure anticipation possible.',
+    'D' : 'Alertes trop tardives. Formation recommandée.',
+    'F' : 'Protocoles non respectés. Formation obligatoire.',
+  };
+
+  document.getElementById('goScore').textContent =
+    `Score final: ${G.score.toLocaleString('fr-FR')}  |  Grade: ${grade}`;
+  document.getElementById('goDetails').innerHTML = `
+    Vies sauvées: <strong>${G.saved.toLocaleString('fr-FR')} / ${G.atRisk.toLocaleString('fr-FR')}</strong> (${Math.round(pct*100)}%)<br>
+    Tornade maximale: <strong>${efNames[efMax]}</strong><br>
+    Durée simulation: <strong>${Math.floor(G.t/60)}m ${Math.floor(G.t%60)}s</strong><br>
+    Alertes émises: <strong>${alertCount} / 3</strong><br><br>
+    <span style="color:${gradeColor}">${messages[grade]}</span>
+  `;
+
+  const go = document.getElementById('gameover');
+  go.style.display = 'flex';
+}
+
+// --------------- Boot ---------------
+init();
+</script>
+</body>
+</html>
