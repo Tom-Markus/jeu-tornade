@@ -5,387 +5,102 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STORM WATCH — Simulateur Météo</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#000; overflow:hidden; font-family:'Courier New',monospace; color:#00ff41; user-select:none; }
 
-body {
-  background: #000;
-  overflow: hidden;
-  font-family: 'Courier New', monospace;
-  color: #00ff41;
-  user-select: none;
-}
-
-#gameCanvas {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  display: block;
-  cursor: crosshair;
-}
+#gameCanvas { position:fixed; top:0; left:0; width:100%; height:100%; display:block; cursor:crosshair; }
 
 /* ===== RADAR ===== */
-#radarWrapper {
-  position: fixed;
-  bottom: 16px;
-  left: 16px;
-  z-index: 100;
-}
+#radarWrapper { position:fixed; bottom:16px; left:16px; z-index:100; }
+#radarLabel { color:#00ff41; font-size:9px; letter-spacing:1.5px; text-align:center; margin-bottom:4px; opacity:.85; text-shadow:0 0 6px #00ff41; }
+#radarPanel { width:210px; height:210px; border-radius:50%; border:2px solid rgba(0,255,65,.7); box-shadow:0 0 18px rgba(0,255,65,.4),inset 0 0 15px rgba(0,255,65,.05); overflow:hidden; }
+#radarCanvas { display:block; }
 
-#radarLabel {
-  color: #00ff41;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  text-align: center;
-  margin-bottom: 4px;
-  opacity: 0.85;
-  text-shadow: 0 0 6px #00ff41;
-}
+/* ===== ALERTS ===== */
+#alertPanel { position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:100; display:flex; gap:8px; }
+.alert-btn { padding:8px 16px; font-family:'Courier New',monospace; font-size:11px; font-weight:bold; cursor:pointer; border:2px solid; background:rgba(0,0,0,.85); text-transform:uppercase; letter-spacing:1.5px; transition:all .2s; outline:none; }
+.btn-watch  { border-color:#f5c400; color:#f5c400; }
+.btn-watch:hover  { background:rgba(245,196,0,.15); box-shadow:0 0 12px #f5c400; }
+.btn-watch.fired  { opacity:.6; cursor:default; background:rgba(245,196,0,.12); }
+.btn-warning { border-color:#ff5500; color:#ff5500; }
+.btn-warning:hover { background:rgba(255,85,0,.15); box-shadow:0 0 12px #ff5500; }
+.btn-warning.fired { opacity:.6; cursor:default; }
+.btn-emergency { border-color:#ff0000; color:#ff0000; }
+.btn-emergency:hover { background:rgba(255,0,0,.15); box-shadow:0 0 12px #ff0000; }
+.btn-emergency.fired { background:rgba(255,0,0,.2); box-shadow:0 0 20px #ff0000; animation:blink .8s infinite; cursor:default; }
+@keyframes blink { 50%{opacity:.5} }
 
-#radarPanel {
-  width: 210px;
-  height: 210px;
-  border-radius: 50%;
-  border: 2px solid rgba(0,255,65,0.7);
-  box-shadow: 0 0 18px rgba(0,255,65,0.4), inset 0 0 15px rgba(0,255,65,0.05);
-  overflow: hidden;
-}
-
-#radarCanvas { display: block; }
-
-/* ===== ALERT BUTTONS ===== */
-#alertPanel {
-  position: fixed;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.alert-btn {
-  padding: 8px 16px;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  font-weight: bold;
-  cursor: pointer;
-  border: 2px solid;
-  background: rgba(0,0,0,0.85);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  transition: all 0.2s;
-  outline: none;
-}
-
-.btn-watch  { border-color: #f5c400; color: #f5c400; }
-.btn-watch:hover  { background: rgba(245,196,0,0.15); box-shadow: 0 0 12px #f5c400; }
-.btn-watch.fired  { background: rgba(245,196,0,0.2); box-shadow: 0 0 16px #f5c400; opacity: 0.7; cursor: default; }
-
-.btn-warning { border-color: #ff5500; color: #ff5500; }
-.btn-warning:hover { background: rgba(255,85,0,0.15); box-shadow: 0 0 12px #ff5500; }
-.btn-warning.fired { background: rgba(255,85,0,0.2); box-shadow: 0 0 16px #ff5500; opacity: 0.7; cursor: default; }
-
-.btn-emergency { border-color: #ff0000; color: #ff0000; }
-.btn-emergency:hover { background: rgba(255,0,0,0.15); box-shadow: 0 0 12px #ff0000; }
-.btn-emergency.fired {
-  background: rgba(255,0,0,0.25);
-  box-shadow: 0 0 20px #ff0000;
-  animation: blink-em 0.8s infinite;
-  opacity: 0.9;
-  cursor: default;
-}
-
-@keyframes blink-em { 50% { opacity: 0.5; } }
-
-/* ===== PHASE INDICATOR ===== */
-#phaseBox {
-  position: fixed;
-  top: 60px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  text-align: center;
-  pointer-events: none;
-}
-
-#phaseText {
-  font-size: 20px;
-  font-weight: bold;
-  letter-spacing: 4px;
-  text-shadow: 0 0 18px currentColor;
-  color: #00ff41;
-}
-
-#scoreText {
-  font-size: 12px;
-  color: #ccc;
-  margin-top: 4px;
-  letter-spacing: 1px;
-}
+/* ===== PHASE ===== */
+#phaseBox { position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:100; text-align:center; pointer-events:none; }
+#phaseText { font-size:20px; font-weight:bold; letter-spacing:4px; text-shadow:0 0 18px currentColor; color:#00ff41; }
+#scoreText { font-size:12px; color:#ccc; margin-top:4px; }
 
 /* ===== INSTRUMENTS ===== */
-#instruments {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  width: 195px;
-  background: rgba(0,5,0,0.88);
-  border: 1px solid rgba(0,255,65,0.5);
-  padding: 12px;
-  z-index: 100;
-  font-size: 11px;
-  box-shadow: 0 0 12px rgba(0,255,65,0.2);
-}
-
-#instruments h3 {
-  color: #00ff41;
-  font-size: 11px;
-  border-bottom: 1px solid rgba(0,255,65,0.3);
-  padding-bottom: 6px;
-  margin-bottom: 8px;
-  letter-spacing: 2px;
-}
-
-.inst-row {
-  display: flex;
-  justify-content: space-between;
-  margin: 4px 0;
-  color: #88cc88;
-}
-.inst-val { color: #fff; font-weight: bold; }
-.inst-val.danger  { color: #ff5500; text-shadow: 0 0 8px #ff5500; }
-.inst-val.critical { color: #ff0000; text-shadow: 0 0 8px #ff0000; animation: blink-em 0.5s infinite; }
+#instruments { position:fixed; top:16px; right:16px; width:195px; background:rgba(0,5,0,.9); border:1px solid rgba(0,255,65,.4); padding:12px; z-index:100; font-size:11px; box-shadow:0 0 12px rgba(0,255,65,.2); }
+#instruments h3 { color:#00ff41; font-size:11px; border-bottom:1px solid rgba(0,255,65,.3); padding-bottom:6px; margin-bottom:8px; letter-spacing:2px; }
+.inst-row { display:flex; justify-content:space-between; margin:4px 0; color:#88cc88; }
+.inst-val { color:#fff; font-weight:bold; }
+.inst-val.danger  { color:#ff5500; text-shadow:0 0 8px #ff5500; }
+.inst-val.critical { color:#ff0000; animation:blink .5s infinite; }
 
 /* ===== EF SCALE ===== */
-#efPanel {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 200px;
-  background: rgba(0,0,0,0.88);
-  border: 1px solid rgba(255,85,0,0.5);
-  padding: 12px;
-  z-index: 100;
-  box-shadow: 0 0 12px rgba(255,85,0,0.2);
-}
+#efPanel { position:fixed; bottom:16px; right:16px; width:200px; background:rgba(0,0,0,.9); border:1px solid rgba(255,85,0,.5); padding:12px; z-index:100; }
+#efPanel h3 { color:#ff5500; font-size:11px; margin-bottom:8px; letter-spacing:1.5px; }
+#efBarOuter { background:#0a0a0a; height:16px; border:1px solid #333; border-radius:2px; overflow:hidden; margin-bottom:6px; }
+#efBar { height:100%; width:0%; background:linear-gradient(to right,#00dd00,#aadd00,#ffcc00,#ff6600,#ff0000,#880088); transition:width .8s ease; }
+#efText  { font-size:10px; color:#ffcc00; margin-top:4px; }
+#distText { font-size:11px; color:#f5c400; margin-top:4px; font-weight:bold; }
 
-#efPanel h3 {
-  color: #ff5500;
-  font-size: 11px;
-  margin-bottom: 8px;
-  letter-spacing: 1.5px;
-}
+/* ===== RADIO ===== */
+#radioLog { position:fixed; left:240px; bottom:16px; width:290px; max-height:140px; background:rgba(0,5,0,.9); border:1px solid rgba(0,255,65,.4); padding:8px 10px; overflow-y:auto; z-index:100; font-size:10px; }
+#radioLog .log-title { color:#00ff41; font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid rgba(0,255,65,.2); padding-bottom:4px; }
+.radio-msg { color:#77bb77; margin:2px 0; line-height:1.4; border-bottom:1px solid #001500; }
+.radio-msg.alert  { color:#ff8833; }
+.radio-msg.danger { color:#ff3300; font-weight:bold; }
 
-#efBarOuter {
-  background: #0a0a0a;
-  height: 16px;
-  border: 1px solid #333;
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: 6px;
-}
-
-#efBar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(to right, #00dd00, #aadd00, #ffcc00, #ff6600, #ff0000, #880088);
-  transition: width 0.8s ease;
-}
-
-#efText   { font-size: 10px; color: #ffcc00; margin-top: 4px; }
-#distText { font-size: 11px; color: #f5c400; margin-top: 4px; font-weight: bold; }
-
-/* ===== RADIO LOG ===== */
-#radioLog {
-  position: fixed;
-  left: 240px;
-  bottom: 16px;
-  width: 290px;
-  max-height: 140px;
-  background: rgba(0,5,0,0.88);
-  border: 1px solid rgba(0,255,65,0.4);
-  padding: 8px 10px;
-  overflow-y: auto;
-  z-index: 100;
-  font-size: 10px;
-  box-shadow: 0 0 10px rgba(0,255,65,0.15);
-}
-
-#radioLog .log-title {
-  color: #00ff41;
-  font-size: 11px;
-  font-weight: bold;
-  margin-bottom: 5px;
-  letter-spacing: 1px;
-  border-bottom: 1px solid rgba(0,255,65,0.2);
-  padding-bottom: 4px;
-}
-
-.radio-msg         { color: #77bb77; margin: 2px 0; padding: 1px 0; border-bottom: 1px solid #001500; line-height: 1.4; }
-.radio-msg.alert   { color: #ff8833; }
-.radio-msg.danger  { color: #ff3300; font-weight: bold; }
-
-/* ===== VIGNETTE ===== */
-#vignette {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  pointer-events: none;
-  z-index: 30;
-  background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%);
-}
-
-/* ===== SCREEN FLASH ===== */
-#flash {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  pointer-events: none;
-  z-index: 200;
-  opacity: 0;
-  background: #fff;
-  transition: opacity 0.05s;
-}
+/* ===== FLASH ===== */
+#flash { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:200; opacity:0; background:#fff; transition:opacity .05s; }
+#vignette { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:30; background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.55) 100%); }
+#lockHint { position:fixed; bottom:240px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.35); font-size:11px; z-index:100; pointer-events:none; }
 
 /* ===== INTRO ===== */
-#intro {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.97);
-  z-index: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-}
-
-#intro h1 {
-  font-size: 52px;
-  color: #ff5500;
-  text-shadow: 0 0 40px #ff5500, 0 0 80px rgba(255,85,0,0.3);
-  margin-bottom: 6px;
-  letter-spacing: 8px;
-}
-
-#intro .sub {
-  color: #00ff41;
-  font-size: 13px;
-  letter-spacing: 4px;
-  margin-bottom: 36px;
-}
-
-#intro .instruct {
-  color: #999;
-  font-size: 12px;
-  line-height: 2.2;
-  text-align: center;
-  max-width: 560px;
-  margin-bottom: 40px;
-}
-
-#intro .instruct strong { color: #f5c400; }
-
-#startBtn {
-  padding: 14px 54px;
-  background: transparent;
-  border: 2px solid #ff5500;
-  color: #ff5500;
-  font-family: 'Courier New', monospace;
-  font-size: 16px;
-  cursor: pointer;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  transition: all 0.3s;
-}
-#startBtn:hover { background: rgba(255,85,0,0.15); box-shadow: 0 0 30px #ff5500; }
+#intro { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.97); z-index:500; display:flex; align-items:center; justify-content:center; flex-direction:column; }
+#intro h1 { font-size:52px; color:#ff5500; text-shadow:0 0 40px #ff5500,0 0 80px rgba(255,85,0,.3); margin-bottom:6px; letter-spacing:8px; }
+#intro .sub { color:#00ff41; font-size:13px; letter-spacing:4px; margin-bottom:36px; }
+#intro .instruct { color:#999; font-size:12px; line-height:2.2; text-align:center; max-width:560px; margin-bottom:40px; }
+#intro .instruct strong { color:#f5c400; }
+#startBtn { padding:14px 54px; background:transparent; border:2px solid #ff5500; color:#ff5500; font-family:'Courier New',monospace; font-size:16px; cursor:pointer; letter-spacing:4px; text-transform:uppercase; transition:all .3s; }
+#startBtn:hover { background:rgba(255,85,0,.15); box-shadow:0 0 30px #ff5500; }
 
 /* ===== GAME OVER ===== */
-#gameover {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.92);
-  z-index: 500;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-#gameover h1 { font-size: 42px; color: #ff0000; text-shadow: 0 0 30px #ff0000; margin-bottom: 20px; }
-#goScore { font-size: 22px; color: #fff; margin-bottom: 10px; }
-#goDetails { font-size: 13px; color: #aaa; line-height: 2.2; text-align: center; margin-bottom: 30px; }
-
-#replayBtn {
-  padding: 12px 40px;
-  background: transparent;
-  border: 2px solid #ff5500;
-  color: #ff5500;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  cursor: pointer;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  transition: all 0.3s;
-}
-#replayBtn:hover { background: rgba(255,85,0,0.15); box-shadow: 0 0 20px #ff5500; }
-
-/* ===== CROSSHAIR ===== */
-#xhair {
-  position: fixed;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px; height: 16px;
-  pointer-events: none;
-  z-index: 50;
-}
-#xhair::before, #xhair::after {
-  content: '';
-  position: absolute;
-  background: rgba(255,255,255,0.4);
-}
-#xhair::before { width: 1px; height: 100%; left: 50%; top: 0; }
-#xhair::after  { height: 1px; width: 100%; top: 50%; left: 0; }
-
-/* ===== LOCK HINT ===== */
-#lockHint {
-  position: fixed;
-  bottom: 250px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: rgba(255,255,255,0.4);
-  font-size: 11px;
-  letter-spacing: 1px;
-  z-index: 100;
-  pointer-events: none;
-  transition: opacity 0.5s;
-}
+#gameover { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.92); z-index:500; display:none; flex-direction:column; align-items:center; justify-content:center; }
+#gameover h1 { font-size:42px; color:#ff0000; text-shadow:0 0 30px #ff0000; margin-bottom:20px; }
+#goScore { font-size:22px; color:#fff; margin-bottom:10px; }
+#goDetails { font-size:13px; color:#aaa; line-height:2.2; text-align:center; margin-bottom:30px; }
+#replayBtn { padding:12px 40px; background:transparent; border:2px solid #ff5500; color:#ff5500; font-family:'Courier New',monospace; font-size:14px; cursor:pointer; letter-spacing:3px; transition:all .3s; }
+#replayBtn:hover { background:rgba(255,85,0,.15); box-shadow:0 0 20px #ff5500; }
 </style>
 </head>
 <body>
 
 <canvas id="gameCanvas"></canvas>
 
-<!-- Radar -->
 <div id="radarWrapper">
   <div id="radarLabel">▶ RADAR DOPPLER WSR-88D ◀ KOAX</div>
-  <div id="radarPanel">
-    <canvas id="radarCanvas" width="210" height="210"></canvas>
-  </div>
+  <div id="radarPanel"><canvas id="radarCanvas" width="210" height="210"></canvas></div>
 </div>
 
-<!-- Alert buttons -->
 <div id="alertPanel">
   <button class="alert-btn btn-watch"     id="btnWatch"     onclick="issueAlert('WATCH')">⚠ VEILLE TORNADE</button>
   <button class="alert-btn btn-warning"   id="btnWarning"   onclick="issueAlert('WARNING')">🌪 ALERTE TORNADE</button>
   <button class="alert-btn btn-emergency" id="btnEmergency" onclick="issueAlert('EMERGENCY')">🚨 URGENCE ABSOLUE</button>
 </div>
 
-<!-- Phase indicator -->
 <div id="phaseBox">
   <div id="phaseText">SURVEILLANCE ACTIVE</div>
   <div id="scoreText">Vies sauvées: 0 &nbsp;|&nbsp; Score: 0</div>
 </div>
 
-<!-- Instruments -->
 <div id="instruments">
   <h3>📡 INSTRUMENTS — KOAX</h3>
   <div class="inst-row"><span>Pression</span><span class="inst-val" id="iPress">1013 hPa</span></div>
@@ -398,7 +113,6 @@ body {
   <div class="inst-row"><span>Rotation</span><span class="inst-val" id="iRot" style="color:#f5c400">— m/s</span></div>
 </div>
 
-<!-- EF scale -->
 <div id="efPanel">
   <h3>ÉCHELLE DE FUJITA (EF)</h3>
   <div id="efBarOuter"><div id="efBar"></div></div>
@@ -406,35 +120,28 @@ body {
   <div id="distText">Distance: —</div>
 </div>
 
-<!-- Radio log -->
 <div id="radioLog">
   <div class="log-title">📻 COMMUNICATIONS — KOAX NWS</div>
 </div>
 
-<!-- Vignette + flash -->
 <div id="vignette"></div>
 <div id="flash"></div>
-<div id="xhair"></div>
-<div id="lockHint">🖱 CLIQUER+GLISSER pour pivoter · touches 1 / 2 / 3 pour alertes rapides</div>
+<div id="lockHint">🖱 CLIQUER+GLISSER pour pivoter · touches 1 / 2 / 3 pour alertes</div>
 
-<!-- Intro screen -->
 <div id="intro">
   <h1>🌪 STORM WATCH</h1>
   <div class="sub">SIMULATEUR DE TOUR DE CONTRÔLE MÉTÉO — STATION KOAX</div>
   <div class="instruct">
     Vous êtes météorologue de garde au NWS de Lincoln, Nebraska.<br>
-    Une outbreak de tornades se développe au sud-ouest.<br>
-    Surveillez le radar Doppler, analysez les supercellules<br>
-    et émettez des alertes au bon moment pour sauver des vies.<br><br>
-    <strong>CLIQUER + GLISSER</strong> — Regarder autour (vue panoramique)<br>
-    <strong>BOUTONS ou touches 1 / 2 / 3</strong> — Émettre les alertes<br>
-    <strong>RADAR</strong> (bas-gauche) — Suivez la cellule tornадique<br><br>
-    <em style="color:#888">La tornade approche depuis le sud-ouest — regardez par la fenêtre!</em>
+    Une supercellule tornадique approche depuis le sud-ouest.<br>
+    Analysez le radar Doppler et émettez des alertes au bon moment.<br><br>
+    <strong>CLIQUER+GLISSER</strong> — Vue panoramique<br>
+    <strong>Touches 1 / 2 / 3</strong> — Émettre les alertes<br>
+    <em style="color:#888">La tornade arrive plein cadre — regardez par la fenêtre!</em>
   </div>
   <button id="startBtn" onclick="startGame()">▶ LANCER LA SIMULATION</button>
 </div>
 
-<!-- Game over -->
 <div id="gameover">
   <h1>SIMULATION TERMINÉE</h1>
   <div id="goScore"></div>
@@ -442,119 +149,143 @@ body {
   <button id="replayBtn" onclick="location.reload()">↺ RECOMMENCER</button>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<!-- Three.js r134 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+<!-- Post-processing -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
 <script>
 'use strict';
-
-/* ============================================================
-   STORM WATCH — Tour de contrôle météo
-   Simulateur de tornade réaliste (HTML5 / Three.js)
-   ============================================================ */
+/* ================================================================
+   STORM WATCH — Tour de contrôle météo réaliste
+   Rendu : Three.js r134 + UnrealBloom + GLSL shaders
+   ================================================================ */
 
 // --------------- constants ---------------
-// Tornado starts 8 km to the SW, moves NE directly toward (then past) the station.
-// With camera facing SW (yaw=135°), the funnel appears dead-center on screen.
-const TORNADO_INIT_X   = -5700;
-const TORNADO_INIT_Z   =  5700;
-const TORNADO_SPD_X    =  18;   // m/s (moving east)
-const TORNADO_SPD_Z    = -18;   // m/s (moving north)
-const EF_RATE          = 0.065; // EF per second after touchdown
-const RAIN_COUNT       = 3200;
-const TORNADO_PTCL     = 1600;
-const DEBRIS_PTCL      = 500;
+const TORNADO_INIT_X = -5700;
+const TORNADO_INIT_Z =  5700;
+const TORNADO_SPD_X  =  18;
+const TORNADO_SPD_Z  = -18;
+const EF_RATE   = 0.065;
+const RAIN_N    = 2800;
+const DEBRIS_N  = 600;
 const EF_LABELS = [
-  'EF0 — Léger (105–137 km/h)',
-  'EF1 — Modéré (138–177 km/h)',
-  'EF2 — Significatif (178–217 km/h)',
-  'EF3 — Sévère (218–266 km/h)',
-  'EF4 — Dévastateur (267–322 km/h)',
-  'EF5 — Incroyable (> 322 km/h)',
+  'EF0 — Léger (105–137 km/h)',  'EF1 — Modéré (138–177 km/h)',
+  'EF2 — Significatif (178–217 km/h)', 'EF3 — Sévère (218–266 km/h)',
+  'EF4 — Dévastateur (267–322 km/h)', 'EF5 — Incroyable (> 322 km/h)',
 ];
 const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
 
 // --------------- game state ---------------
 const G = {
-  running : false,
-  phase   : 'PRE',   // PRE WATCH WARNING IMMINENT IMPACT OVER
-  t       : 0,
-  score   : 0,
-  saved   : 0,
-  atRisk  : 28000,
-  alerts  : { WATCH: false, WARNING: false, EMERGENCY: false },
-  onGround: false,
-  dist    : 15000,
-  ef      : 0,
-  maxEF   : 0,
-  pressure: 1013,
-  wind    : 18,
-  vis     : 12,
-  rot     : 0,
-  yaw     : 0,
-  pitch   : 0,
-  locked  : false,
-  shake   : 0,
-  lightT  : 0,
-  nextLight: 6,
+  running:false, phase:'PRE', t:0, score:0, saved:0, atRisk:28000,
+  alerts:{WATCH:false, WARNING:false, EMERGENCY:false},
+  onGround:false, dist:9000, ef:0, maxEF:0,
+  pressure:1013, wind:18, vis:12, rot:0,
+  yaw:0, pitch:0, shake:0,
+  lightT:0, nextLight:8,
 };
 
 // --------------- Three.js globals ---------------
-let renderer, scene, camera, clock, skyMat;
-let tornadoGroup, tornadoPts, debrisPts, rainPts;
-let ambLight, sunLight, torLight, flashLight;
+let renderer, scene, camera, clock, composer, bloomPass;
+let tornadoGroup, tornadoMesh, tornadoMantle, tornadoBase, debrisPts;
+let rainLines, skyMesh, skyMat;
+let hemiLight, sunLight, torLight, flashLight, ambLight;
 
-// --------------- Radar globals ---------------
+// --------------- Radar ---------------
 let rCtx, rAngle = 0;
-const RADAR_CX = 105, RADAR_CY = 105, RADAR_R = 102;
 const storms = [
   { x:28, y:170, vx:1.3, vy:-0.75, intens:0.2, isSuperCell:true,  confirmed:false, rot:0 },
   { x:14, y:118, vx:0.9, vy:-0.55, intens:0.12, isSuperCell:false, confirmed:false, rot:0 },
   { x:58, y:195, vx:1.0, vy:-0.65, intens:0.18, isSuperCell:false, confirmed:false, rot:0 },
 ];
 
-// --------------- Init ---------------
+// ================================================================
+// INIT
+// ================================================================
 function init() {
   initGL();
   buildScene();
+  setupComposer();
   buildRadar();
-  setupPointerLock();
+  setupControls();
   clock = new THREE.Clock();
 }
 
 function initGL() {
-  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById('gameCanvas'),
+    antialias: true, powerPreference: 'high-performance'
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.3;
+  renderer.toneMappingExposure = 1.1;
+  renderer.outputEncoding = THREE.sRGBEncoding;
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0xaac8dc, 0.000032);
+  scene.fog = new THREE.FogExp2(0xb4ccd8, 0.000025);
 
-  camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.5, 50000);
+  camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.3, 80000);
   camera.position.set(0, 3.2, 1.5);
   camera.rotation.order = 'YXZ';
 
   window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
   });
 }
 
-// --------------- Scene ---------------
+function setupComposer() {
+  composer = new THREE.EffectComposer(renderer);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+  bloomPass = new THREE.UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.55, 0.6, 0.38   // strength, radius, threshold
+  );
+  composer.addPass(bloomPass);
+}
+
+// ================================================================
+// SCENE
+// ================================================================
 function buildScene() {
-  /* Lights */
-  ambLight  = new THREE.AmbientLight(0xfff0dd, 3.0);
-  sunLight  = new THREE.DirectionalLight(0xfff8e8, 2.8);
-  sunLight.position.set(300, 600, 200);
+  // Hemisphere: sky blue above, warm ground below
+  hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x8fbc6f, 1.8);
+  scene.add(hemiLight);
+
+  // Sun: warm directional from SE
+  sunLight = new THREE.DirectionalLight(0xfff5d8, 2.6);
+  sunLight.position.set(600, 900, -400);
   sunLight.castShadow = true;
-  torLight  = new THREE.PointLight(0x44ff88, 0, 8000);
-  torLight.position.set(0, 400, 0);
-  flashLight = new THREE.PointLight(0x9999ff, 0, 25000);
-  flashLight.position.set(0, 1800, -3000);
-  scene.add(ambLight, sunLight, torLight, flashLight);
+  sunLight.shadow.mapSize.set(2048, 2048);
+  sunLight.shadow.camera.far = 20000;
+  sunLight.shadow.camera.near = 10;
+  sunLight.shadow.camera.left = sunLight.shadow.camera.bottom = -3000;
+  sunLight.shadow.camera.right = sunLight.shadow.camera.top  =  3000;
+  scene.add(sunLight);
+
+  // Tornado point light (greenish glow)
+  torLight = new THREE.PointLight(0x55ff88, 0, 9000);
+  scene.add(torLight);
+
+  // Lightning flash light
+  flashLight = new THREE.PointLight(0xaabbff, 0, 30000);
+  flashLight.position.set(0, 2000, -3000);
+  scene.add(flashLight);
+
+  // Subtle ambient fill
+  ambLight = new THREE.AmbientLight(0xffeedd, 0.4);
+  scene.add(ambLight);
 
   makeSky();
   makeGround();
@@ -564,439 +295,528 @@ function buildScene() {
   makeClouds();
 }
 
+// ===================== SKY (atmospheric shader) =====================
 function makeSky() {
-  const geo = new THREE.SphereGeometry(42000, 24, 12);
+  const geo = new THREE.SphereGeometry(45000, 32, 16);
   geo.scale(-1, 1, 1);
+
   skyMat = new THREE.ShaderMaterial({
     uniforms: {
-      topColor:    { value: new THREE.Color(0x1a6fcc) },
-      bottomColor: { value: new THREE.Color(0x8bbcd8) },
-      stormTop:    { value: new THREE.Color(0x060510) },
-      stormBot:    { value: new THREE.Color(0x1a1428) },
-      darkness:    { value: 0.0 },
+      uSunDir:    { value: new THREE.Vector3(0.55, 0.65, -0.52).normalize() },
+      uStorm:     { value: 0.0 },
     },
     vertexShader: `
-      varying float vY;
+      varying vec3 vDir;
       void main() {
-        vY = normalize((modelMatrix * vec4(position,1.0)).xyz).y;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+        vDir = normalize((modelMatrix * vec4(position, 0.0)).xyz);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: `
-      uniform vec3 topColor, bottomColor, stormTop, stormBot;
-      uniform float darkness;
-      varying float vY;
+      uniform vec3 uSunDir;
+      uniform float uStorm;
+      varying vec3 vDir;
+
       void main() {
-        float t = pow(clamp(vY * 0.5 + 0.5, 0.0, 1.0), 0.4);
-        vec3 dayCol   = mix(bottomColor, topColor, t);
-        vec3 stormCol = mix(stormBot, stormTop, t);
-        gl_FragColor = vec4(mix(dayCol, stormCol, darkness), 1.0);
+        vec3 d = normalize(vDir);
+        float h = max(0.0, d.y);
+
+        /* ---- clear sky: Rayleigh-inspired gradient ---- */
+        vec3 zenith  = vec3(0.10, 0.34, 0.78);
+        vec3 horizon = vec3(0.68, 0.84, 0.96);
+        vec3 clearSky = mix(horizon, zenith, pow(h, 0.45));
+
+        /* ---- sun disk + corona ---- */
+        float cosA  = dot(d, uSunDir);
+        clearSky += vec3(1.0, 0.95, 0.80) * pow(max(cosA, 0.0), 350.0) * 4.0;
+        clearSky += vec3(1.0, 0.70, 0.40) * pow(max(cosA, 0.0), 12.0)  * 0.22;
+        clearSky += vec3(0.8, 0.55, 0.25) * pow(max(cosA, 0.0), 5.0)   * 0.06;
+
+        /* ---- storm sky (tornado green) ---- */
+        vec3 stormZen  = vec3(0.04, 0.05, 0.07);
+        vec3 stormHor  = vec3(0.14, 0.18, 0.10);  // eerie green horizon
+        vec3 stormSky  = mix(stormHor, stormZen, pow(h, 0.35));
+
+        vec3 sky = mix(clearSky, stormSky, uStorm);
+        gl_FragColor = vec4(max(sky, vec3(0.0)), 1.0);
       }`,
     side: THREE.BackSide,
+    depthWrite: false,
   });
-  scene.add(new THREE.Mesh(geo, skyMat));
+
+  skyMesh = new THREE.Mesh(geo, skyMat);
+  scene.add(skyMesh);
 }
 
+// ===================== GROUND (procedural canvas texture) =====================
 function makeGround() {
-  const geo = new THREE.PlaneGeometry(55000, 55000, 80, 80);
+  // Build Oklahoma farmland texture on a canvas
+  const sz = 1024;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = sz;
+  const cx = cv.getContext('2d');
+
+  // Base: dry tan Oklahoma soil
+  cx.fillStyle = '#b09060';
+  cx.fillRect(0, 0, sz, sz);
+
+  // Field rectangles
+  const cols = [
+    '#78b030','#62a020','#70b828','#5a9818',  // green crops
+    '#cdb848','#d4c050','#c8b040',             // wheat
+    '#8a7040','#7a6030','#6a5428',             // plowed soil
+    '#b0a062','#a89050','#bea86a',             // fallow
+  ];
+  for (let i = 0; i < 28; i++) {
+    const x = Math.random()*sz, y = Math.random()*sz;
+    const w = 55+Math.random()*180, h = 45+Math.random()*110;
+    cx.fillStyle = cols[Math.floor(Math.random()*cols.length)];
+    cx.fillRect(x-w/2, y-h/2, w, h);
+  }
+
+  // Crop rows on some fields
+  cx.strokeStyle = 'rgba(0,0,0,0.07)'; cx.lineWidth = 1;
+  for (let y = 0; y < sz; y += 7) {
+    cx.beginPath(); cx.moveTo(0,y); cx.lineTo(sz,y); cx.stroke();
+  }
+
+  // Roads
+  cx.fillStyle = '#484848';
+  cx.fillRect(0, sz/2-5, sz, 10);
+  cx.fillRect(sz/2-5, 0, 10, sz);
+  // Yellow center line
+  cx.strokeStyle = 'rgba(255,220,0,0.6)'; cx.setLineDash([16,12]); cx.lineWidth = 1.5;
+  cx.beginPath(); cx.moveTo(0,sz/2); cx.lineTo(sz,sz/2); cx.stroke();
+  cx.beginPath(); cx.moveTo(sz/2,0); cx.lineTo(sz/2,sz); cx.stroke();
+  cx.setLineDash([]);
+
+  // Noise / variation
+  for (let i = 0; i < 10000; i++) {
+    const x = Math.random()*sz, y = Math.random()*sz;
+    const v = (Math.random()-0.5)*22;
+    cx.fillStyle = `rgba(${130+v|0},${102+v|0},${62+v|0},0.18)`;
+    cx.fillRect(x, y, 2+Math.random()*3, 2+Math.random()*2);
+  }
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(18, 18);
+
+  const geo = new THREE.PlaneGeometry(60000, 60000, 64, 64);
+  // Gentle terrain displacement
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i);
-    pos.setZ(i, Math.sin(x * 0.0018) * 6 + Math.cos(y * 0.0025) * 4 + Math.sin(x*y*0.000001)*2);
+    pos.setZ(i, Math.sin(x*0.0015)*7 + Math.cos(y*0.002)*5 + Math.sin(x*y*0.0000008)*3);
   }
   geo.computeVertexNormals();
-  const mat = new THREE.MeshPhongMaterial({ color: 0x3a5c14 });
+
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0.0 });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.x = -Math.PI/2;
   mesh.receiveShadow = true;
   scene.add(mesh);
 
-  addFields();
-  addTrees();
   addFarms();
-  addRoads();
+  addTrees();
 }
 
-function addFields() {
-  const mat = new THREE.MeshPhongMaterial({ color: 0x5a8c1a });
-  [[1600,-1200,900,650],[-900,2100,650,420],[3100,600,1400,900],[-2100,-600,1100,750]].forEach(
-    ([x,z,w,d]) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(x, 0.15, z);
-      scene.add(m);
+function addFarms() {
+  const wMat = new THREE.MeshStandardMaterial({ color:0x9a8a6a, roughness:0.9 });
+  const rMat = new THREE.MeshStandardMaterial({ color:0x8c1c1c, roughness:0.8 });
+  const sMat = new THREE.MeshStandardMaterial({ color:0xccbbaa, roughness:0.7, metalness:0.1 });
+  [[2200,-1600],[4800,1200],[-3200,2700],[1100,3300],[-1700,-3100],[6000,-500],[-5000,1500]].forEach(
+    ([x,z]) => {
+      const w=18+Math.random()*18, h=5+Math.random()*5, d=12+Math.random()*14;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wMat);
+      body.position.set(x,h/2,z); body.castShadow=true; body.receiveShadow=true; scene.add(body);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*0.78,4,4), rMat);
+      roof.position.set(x,h+2,z); roof.rotation.y=Math.PI/4; roof.castShadow=true; scene.add(roof);
+      const sr=2+Math.random()*2.5, sh=14+Math.random()*10;
+      const silo = new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,sh,10), sMat);
+      silo.position.set(x+w/2+sr+2.5, sh/2, z); silo.castShadow=true; scene.add(silo);
     }
   );
 }
 
 function addTrees() {
-  const tMat = new THREE.MeshPhongMaterial({ color: 0x5a3010 });
-  const lMat = new THREE.MeshPhongMaterial({ color: 0x2e7814 });
-  for (let i = 0; i < 70; i++) {
-    const x = (Math.random()-0.5)*12000, z = (Math.random()-0.5)*12000;
+  const tMat = new THREE.MeshStandardMaterial({ color:0x5a3012, roughness:0.9 });
+  const lMat = new THREE.MeshStandardMaterial({ color:0x2e7814, roughness:0.95 });
+  for (let i = 0; i < 80; i++) {
+    const x=(Math.random()-.5)*12000, z=(Math.random()-.5)*12000;
     if (Math.abs(x)<30 && Math.abs(z)<30) continue;
-    const h = 5 + Math.random()*9;
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.45,h,5), tMat);
-    trunk.position.set(x, h/2, z);
-    scene.add(trunk);
-    const crown = new THREE.Mesh(new THREE.ConeGeometry(2.2+Math.random()*1.5, 7+Math.random()*4, 6), lMat);
-    crown.position.set(x, h+2.5, z);
-    scene.add(crown);
+    const h=5+Math.random()*9;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.44,h,5), tMat);
+    trunk.position.set(x,h/2,z); trunk.castShadow=true; scene.add(trunk);
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(2.0+Math.random()*1.5,6+Math.random()*4,6), lMat);
+    crown.position.set(x,h+2.5,z); crown.castShadow=true; scene.add(crown);
   }
 }
 
-function addFarms() {
-  const wMat = new THREE.MeshPhongMaterial({ color: 0x7a6a50 });
-  const rMat = new THREE.MeshPhongMaterial({ color: 0x7c1818 });
-  const sMat = new THREE.MeshPhongMaterial({ color: 0xbbaa99 });
-  [[2200,-1600],[4800,1200],[-3200,2700],[1100,3300],[-1700,-3100],[6000,-500],[-5000,1500]].forEach(
-    ([x,z]) => {
-      const w=18+Math.random()*18, h=5+Math.random()*5, d=12+Math.random()*14;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wMat);
-      body.position.set(x, h/2, z); body.castShadow=true; scene.add(body);
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*0.75,4,4), rMat);
-      roof.position.set(x, h+2, z); roof.rotation.y=Math.PI/4; scene.add(roof);
-      const sr=2+Math.random()*2.5, sh=14+Math.random()*10;
-      const silo = new THREE.Mesh(new THREE.CylinderGeometry(sr,sr,sh,8), sMat);
-      silo.position.set(x+w/2+sr+3, sh/2, z); scene.add(silo);
-    }
-  );
-}
-
-function addRoads() {
-  const mat = new THREE.MeshPhongMaterial({ color: 0x181818 });
-  const r1 = new THREE.Mesh(new THREE.PlaneGeometry(50000,7), mat);
-  r1.rotation.x = -Math.PI/2; r1.position.set(0,0.2,600); scene.add(r1);
-  const r2 = new THREE.Mesh(new THREE.PlaneGeometry(7,50000), mat);
-  r2.rotation.x = -Math.PI/2; r2.position.set(600,0.2,0); scene.add(r2);
-}
-
+// ===================== INTERIOR (FPS) =====================
 function makeInterior() {
-  // In Three.js, camera looks toward -Z.
-  // Camera-child Z must be NEGATIVE to appear in front of the view.
-  // FOV=72°: at z=-4, visible width ≈ ±2.9 wide, ±1.65 tall (16:9).
+  // Dark wood frame materials
+  const frameMat = new THREE.MeshStandardMaterial({ color:0x180e06, roughness:0.85 });
+  const sillMat  = new THREE.MeshStandardMaterial({ color:0x241408, roughness:0.8 });
+  const deskMat  = new THREE.MeshStandardMaterial({ color:0x100808, roughness:0.9 });
+  const glassMat = new THREE.MeshStandardMaterial({
+    color:0x88bbcc, transparent:true, opacity:0.08,
+    roughness:0.05, metalness:0.0, side:THREE.DoubleSide
+  });
+  const monMat   = new THREE.MeshStandardMaterial({ color:0x0c0c0c, roughness:0.5, metalness:0.3 });
+  const scrMat   = new THREE.MeshStandardMaterial({
+    color:0x002200, emissive:0x00aa44, emissiveIntensity:1.2, roughness:1
+  });
 
-  const fMat    = new THREE.MeshPhongMaterial({ color: 0x120c06 });
-  const sillMat = new THREE.MeshPhongMaterial({ color: 0x201408 });
-  const deskMat = new THREE.MeshPhongMaterial({ color: 0x0d0806 });
+  // ---- Window frame (z=-4.0 in camera space = 4m in front) ----
+  addCO(new THREE.BoxGeometry(0.22, 4.2, 0.28), frameMat,  [-3.1,  0.35, -4.0]);
+  addCO(new THREE.BoxGeometry(0.22, 4.2, 0.28), frameMat,  [ 3.1,  0.35, -4.0]);
+  addCO(new THREE.BoxGeometry(6.44, 0.22, 0.28), frameMat, [   0,  2.25, -4.0]);
+  addCO(new THREE.BoxGeometry(6.44, 0.30, 0.65), sillMat,  [   0, -1.55, -3.75]);
+  addCO(new THREE.BoxGeometry(0.12, 3.6,  0.22), frameMat, [   0,  0.35, -3.98]);
+  addCO(new THREE.BoxGeometry(6.44, 0.12, 0.22), frameMat, [   0,  0.35, -3.98]);
+  // Glass pane (subtle)
+  addCO(new THREE.PlaneGeometry(6.1, 3.6), glassMat, [0, 0.35, -3.9]);
 
-  // ---- Window frame (z=-4, 4 m in front) ----
-  // Left pillar
-  addCamObj(new THREE.BoxGeometry(0.22, 4.2, 0.3), fMat, [-3.1, 0.35, -4.0]);
-  // Right pillar
-  addCamObj(new THREE.BoxGeometry(0.22, 4.2, 0.3), fMat, [ 3.1, 0.35, -4.0]);
-  // Top beam
-  addCamObj(new THREE.BoxGeometry(6.44, 0.22, 0.3), fMat, [0,  2.25, -4.0]);
-  // Sill / bottom frame
-  addCamObj(new THREE.BoxGeometry(6.44, 0.28, 0.65), sillMat, [0, -1.55, -3.75]);
-  // Center vertical divider
-  addCamObj(new THREE.BoxGeometry(0.12, 3.6, 0.24), fMat, [0,  0.35, -3.98]);
-  // Horizontal divider bar
-  addCamObj(new THREE.BoxGeometry(6.44, 0.12, 0.24), fMat, [0,  0.35, -3.98]);
-
-  // ---- Desk (z=-2.2, slightly in front, below eye) ----
-  addCamObj(new THREE.BoxGeometry(5.5, 0.14, 2.4), deskMat, [0, -1.65, -2.2]);
-
-  // ---- Monitors ----
-  const monMat = new THREE.MeshPhongMaterial({ color: 0x0c0c0c });
-  const scrMat = new THREE.MeshPhongMaterial({ color: 0x001a00, emissive: 0x002a00, emissiveIntensity: 0.9 });
+  // ---- Desk ----
+  addCO(new THREE.BoxGeometry(5.5, 0.14, 2.4), deskMat, [0, -1.65, -2.2]);
+  // Monitors
   for (const ox of [-1.15, 1.15]) {
-    addCamObj(new THREE.BoxGeometry(0.88, 0.54, 0.07), monMat, [ox, -1.22, -2.4]);
-    addCamObj(new THREE.PlaneGeometry(0.75, 0.43), scrMat, [ox, -1.22, -2.36]);
+    addCO(new THREE.BoxGeometry(0.88, 0.54, 0.07), monMat, [ox, -1.22, -2.4]);
+    addCO(new THREE.PlaneGeometry(0.75, 0.44), scrMat, [ox, -1.22, -2.36]);
   }
+  addCO(new THREE.BoxGeometry(0.65, 0.04, 0.22),
+    new THREE.MeshStandardMaterial({color:0x080808}), [0, -1.60, -1.88]);
 
-  // ---- Keyboard ----
-  addCamObj(new THREE.BoxGeometry(0.65, 0.04, 0.22),
-    new THREE.MeshPhongMaterial({ color: 0x060606 }), [0, -1.60, -1.85]);
+  // Side panels (emissive instruments)
+  const panMat = new THREE.MeshStandardMaterial({
+    color:0x060814, emissive:0x05091a, emissiveIntensity:0.6, roughness:1
+  });
+  addCO(new THREE.PlaneGeometry(1.8, 1.6), panMat, [-4.1,  0.5, -2.7]);
+  addCO(new THREE.PlaneGeometry(1.8, 1.6), panMat, [ 4.1,  0.5, -2.7]);
 
-  // ---- Side instrument panels ----
-  const panMat = new THREE.MeshPhongMaterial({ color: 0x0a0a14, emissive: 0x04041c, emissiveIntensity: 0.5 });
-  addCamObj(new THREE.PlaneGeometry(1.8, 1.6), panMat, [-4.2,  0.5, -2.8]);
-  addCamObj(new THREE.PlaneGeometry(1.8, 1.6), panMat, [ 4.2,  0.5, -2.8]);
+  // Warm indoor point light (makes interior feel alive)
+  const indoorLight = new THREE.PointLight(0xffddaa, 0.6, 8);
+  indoorLight.position.set(0, 1.5, -3.5);
+  camera.add(indoorLight);
 
   scene.add(camera);
 }
 
-function addCamObj(geo, mat, pos) {
+function addCO(geo, mat, pos) {
   const m = new THREE.Mesh(geo, mat);
   m.position.set(...pos);
   camera.add(m);
 }
 
-// --------------- Tornado ---------------
+// ===================== TORNADO (GLSL shader funnel) =====================
 function makeTornado() {
   tornadoGroup = new THREE.Group();
   tornadoGroup.position.set(TORNADO_INIT_X, 0, TORNADO_INIT_Z);
   scene.add(tornadoGroup);
 
-  // ---- Funnel particles ----
-  const N = TORNADO_PTCL;
-  const fp = new Float32Array(N*3), fc = new Float32Array(N*3), fs = new Float32Array(N);
-  for (let i = 0; i < N; i++) {
-    const t  = i / N;
-    const ht = t * 1400;
-    const r  = 25 + t*t*500 + (Math.random()-0.5)*30;
-    const a  = (i / 15) * Math.PI*2 + t * Math.PI*6;
-    fp[i*3]   = Math.cos(a)*r + (Math.random()-0.5)*r*0.25;
-    fp[i*3+1] = ht;
-    fp[i*3+2] = Math.sin(a)*r + (Math.random()-0.5)*r*0.25;
-    const br = 0.25 + t*0.45;
-    fc[i*3] = br*0.55; fc[i*3+1] = br*0.48; fc[i*3+2] = br*0.65;
-    fs[i] = 7 + Math.random()*14;
-  }
-  const fGeo = new THREE.BufferGeometry();
-  fGeo.setAttribute('position', new THREE.BufferAttribute(fp, 3));
-  fGeo.setAttribute('color',    new THREE.BufferAttribute(fc, 3));
-  tornadoPts = new THREE.Points(fGeo, new THREE.PointsMaterial({
-    size: 22, vertexColors: true, transparent: true, opacity: 0,
-    sizeAttenuation: true, depthWrite: false,
-  }));
-  tornadoGroup.add(tornadoPts);
+  /* ---------- INNER FUNNEL (animated shader) ---------- */
+  // Wide at top (460m), narrow at bottom (18m), 1500m tall
+  const funnelGeo = new THREE.CylinderGeometry(460, 18, 1500, 48, 28, true);
 
-  // ---- Debris ----
-  const D = DEBRIS_PTCL;
+  const funnelMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:    { value: 0 },
+      uOpacity: { value: 0 },
+    },
+    vertexShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        float v = uv.y;
+        float wobble = sin(uv.x * 6.28318 * 5.0 - uTime * 3.5 + v * 10.0) * 0.032;
+        vec3 pos = position * (1.0 + wobble);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }`,
+    fragmentShader: `
+      uniform float uTime;
+      uniform float uOpacity;
+      varying vec2 vUv;
+      #define TAU 6.28318
+      void main() {
+        float u = vUv.x, v = vUv.y;
+        // Multi-speed rotating bands — creates vortex illusion
+        float s1 = sin(u*TAU*7.0  - uTime*5.0  + v*13.0);
+        float s2 = sin(u*TAU*3.0  + uTime*2.0  - v*5.0 );
+        float s3 = sin(u*TAU*12.0 - uTime*9.5  + v*20.0);
+        float s4 = sin(u*TAU*1.5  - uTime*1.2  + v*3.0 );
+        float pattern = 0.42 + 0.22*s1 + 0.14*s2 + 0.10*s3 + 0.12*s4;
+
+        // Gradient: dark purple-gray at base → silvery-blue at top
+        vec3 col = mix(
+          vec3(0.04, 0.03, 0.07),
+          vec3(0.55, 0.50, 0.65),
+          pow(v, 0.55)
+        );
+        col *= (0.35 + 0.65*pattern);
+
+        // Subtle emissive tinge (feeds bloom)
+        col += vec3(0.015, 0.010, 0.040) * (1.0-v) * pattern;
+
+        float alpha = uOpacity * (0.55 + 0.45*pattern) * (1.1 - v*0.4);
+        gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.96));
+      }`,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+
+  tornadoMesh = new THREE.Mesh(funnelGeo, funnelMat);
+  tornadoMesh.position.y = 750; // center at half height
+  tornadoGroup.add(tornadoMesh);
+
+  /* ---------- OUTER MANTLE (wider, softer cloud) ---------- */
+  const mantleGeo = new THREE.CylinderGeometry(700, 60, 1200, 32, 16, true);
+  const mantleMat = new THREE.ShaderMaterial({
+    uniforms: { uTime:{ value:0 }, uOpacity:{ value:0 } },
+    vertexShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        float wobble = sin(uv.x*6.28318*3.0 - uTime*2.0 + uv.y*7.0)*0.04;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position*(1.0+wobble),1.0);
+      }`,
+    fragmentShader: `
+      uniform float uTime;
+      uniform float uOpacity;
+      varying vec2 vUv;
+      #define TAU 6.28318
+      void main() {
+        float s = 0.5 + 0.4*sin(vUv.x*TAU*4.0 - uTime*2.8 + vUv.y*8.0)
+                      + 0.1*sin(vUv.x*TAU*8.0 + uTime*4.0);
+        vec3 col = mix(vec3(0.22,0.20,0.28), vec3(0.60,0.56,0.70), vUv.y*s);
+        float alpha = uOpacity * s * 0.35 * (1.0 - vUv.y*0.5);
+        gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.5));
+      }`,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  tornadoMantle = new THREE.Mesh(mantleGeo, mantleMat);
+  tornadoMantle.position.y = 600;
+  tornadoGroup.add(tornadoMantle);
+
+  /* ---------- GROUND DUST CLOUD ---------- */
+  const baseGeo = new THREE.CylinderGeometry(350, 30, 280, 32, 8, true);
+  const baseMat = new THREE.ShaderMaterial({
+    uniforms: { uTime:{ value:0 }, uOpacity:{ value:0 } },
+    vertexShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        float bump = sin(uv.x*6.28318*6.0 - uTime*4.0)*0.06;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position*(1.0+bump),1.0);
+      }`,
+    fragmentShader: `
+      uniform float uTime;
+      uniform float uOpacity;
+      varying vec2 vUv;
+      #define TAU 6.28318
+      void main() {
+        float s = 0.5 + 0.4*sin(vUv.x*TAU*8.0 - uTime*6.0)
+                      + 0.1*sin(vUv.x*TAU*3.0 + uTime*3.0);
+        // Dusty brown
+        vec3 col = mix(vec3(0.28,0.18,0.08), vec3(0.45,0.30,0.14), s);
+        float alpha = uOpacity * (0.6+0.4*s) * (1.0 - vUv.y*0.8);
+        gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.85));
+      }`,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  tornadoBase = new THREE.Mesh(baseGeo, baseMat);
+  tornadoBase.position.y = 140;
+  tornadoGroup.add(tornadoBase);
+
+  /* ---------- DEBRIS PARTICLES ---------- */
+  const D = DEBRIS_N;
   const dp = new Float32Array(D*3), dc = new Float32Array(D*3);
   for (let i = 0; i < D; i++) {
-    const a = Math.random()*Math.PI*2, r = 40+Math.random()*280;
+    const a = Math.random()*Math.PI*2, r = 40+Math.random()*260;
     dp[i*3]   = Math.cos(a)*r;
-    dp[i*3+1] = Math.random()*200;
+    dp[i*3+1] = 5 + Math.random()*200;
     dp[i*3+2] = Math.sin(a)*r;
-    dc[i*3] = 0.28+Math.random()*0.18; dc[i*3+1] = 0.17+Math.random()*0.1; dc[i*3+2] = 0.05+Math.random()*0.05;
+    const br = 0.15+Math.random()*0.2;
+    dc[i*3]=br+0.1; dc[i*3+1]=br*0.65; dc[i*3+2]=br*0.3;
   }
   const dGeo = new THREE.BufferGeometry();
   dGeo.setAttribute('position', new THREE.BufferAttribute(dp, 3));
   dGeo.setAttribute('color',    new THREE.BufferAttribute(dc, 3));
   debrisPts = new THREE.Points(dGeo, new THREE.PointsMaterial({
-    size: 9, vertexColors: true, transparent: true, opacity: 0, sizeAttenuation: true,
+    size:5, vertexColors:true, transparent:true, opacity:0, sizeAttenuation:true,
   }));
   tornadoGroup.add(debrisPts);
 }
 
-// --------------- Rain ---------------
+// ===================== RAIN (LineSegments) =====================
 function makeRain() {
-  const N = RAIN_COUNT;
-  const rp = new Float32Array(N*3);
+  const N = RAIN_N;
+  const pos = new Float32Array(N*6);
+  const DROP = 9; // streak length (m)
   for (let i = 0; i < N; i++) {
-    rp[i*3]   = (Math.random()-0.5)*1200;
-    rp[i*3+1] = Math.random()*400;
-    rp[i*3+2] = (Math.random()-0.5)*1200;
+    const x=(Math.random()-.5)*1100, y=Math.random()*390, z=(Math.random()-.5)*1100;
+    pos[i*6]=x; pos[i*6+1]=y; pos[i*6+2]=z;         // top
+    pos[i*6+3]=x-0.9; pos[i*6+4]=y-DROP; pos[i*6+5]=z+0.6; // bottom (wind angle)
   }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(rp, 3));
-  rainPts = new THREE.Points(geo, new THREE.PointsMaterial({
-    color: 0x7a99bb, size: 0.7, transparent: true, opacity: 0.35,
-    sizeAttenuation: true, depthWrite: false,
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  rainLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+    color:0x99c0dd, transparent:true, opacity:0,
   }));
-  scene.add(rainPts);
+  scene.add(rainLines);
 }
 
-// --------------- Clouds ---------------
+// ===================== CLOUDS =====================
 function makeClouds() {
-  const cMat = new THREE.MeshPhongMaterial({ color: 0x5c5878, transparent: true, opacity: 0.78, side: THREE.DoubleSide, depthWrite: false });
-  // Clouds spread around, but mainly toward SW where the storm approaches (positive Z, negative X)
-  const positions = [
-    [-2800, 880, 3800],  // SW (directly toward tornado origin)
-    [-5000, 860, 5200],  // far SW (storm corridor)
-    [-1200, 820, 2800],  // S-SW
-    [ 2000, 800, 3500],  // SE (anvil spreading)
-    [-4000, 900, 7000],  // far SW (storm anvil)
-    [ 3000, 920,-3500],  // NE (spreading anvil)
-    [    0, 980,-5000],  // N (anvil outflow)
+  // Storm anvil clouds — mainly SW (toward tornado origin) + spreading NE
+  const clusterPos = [
+    [-2800,890,3900], [-5100,870,5300], [-1300,830,2900],
+    [ 2100,810,3600], [-4200,910,7100], [ 3100,930,-3600],
+    [    0,990,-5200],
   ];
-  positions.forEach(([x,y,z]) => {
+  const cMat = new THREE.MeshStandardMaterial({
+    color:0x707090, transparent:true, opacity:0.72,
+    roughness:1, side:THREE.FrontSide, depthWrite:false,
+  });
+  clusterPos.forEach(([x,y,z]) => {
     const g = new THREE.Group();
     for (let i = 0; i < 7; i++) {
-      const r = 280+Math.random()*420;
+      const r = 320+Math.random()*460;
       const blob = new THREE.Mesh(new THREE.SphereGeometry(r,7,5), cMat);
-      blob.position.set((Math.random()-0.5)*600,(Math.random()-0.5)*160,(Math.random()-0.5)*350);
-      blob.scale.y = 0.35+Math.random()*0.25;
+      blob.position.set((Math.random()-.5)*650,(Math.random()-.5)*160,(Math.random()-.5)*380);
+      blob.scale.y = 0.32+Math.random()*0.22;
       g.add(blob);
     }
     g.position.set(x,y,z);
     scene.add(g);
   });
 
-  // Rotating wall cloud above tornado
+  // Dark rotating wall cloud above tornado funnel
+  const wcMat = new THREE.MeshStandardMaterial({
+    color:0x1c1828, transparent:true, opacity:0.88,
+    roughness:1, side:THREE.DoubleSide, depthWrite:false,
+  });
   const wc = new THREE.Group();
-  const wMat = new THREE.MeshPhongMaterial({ color:0x252235, transparent:true, opacity:0.90, side:THREE.DoubleSide, depthWrite:false });
   for (let i = 0; i < 12; i++) {
-    const r = 380+Math.random()*320;
-    const blob = new THREE.Mesh(new THREE.SphereGeometry(r,7,5), wMat);
-    blob.position.set((Math.random()-0.5)*900,(Math.random()-0.5)*220,(Math.random()-0.5)*600);
-    blob.scale.y = 0.28+Math.random()*0.18;
+    const r = 420+Math.random()*350;
+    const blob = new THREE.Mesh(new THREE.SphereGeometry(r,7,5), wcMat);
+    blob.position.set((Math.random()-.5)*950,(Math.random()-.5)*230,(Math.random()-.5)*650);
+    blob.scale.y = 0.26+Math.random()*0.18;
     wc.add(blob);
   }
-  wc.position.set(0, 1300, 0);
+  wc.position.set(0, 1450, 0);
   tornadoGroup.add(wc);
 }
 
-// --------------- Radar ---------------
+// ================================================================
+// RADAR
+// ================================================================
 function buildRadar() {
   rCtx = document.getElementById('radarCanvas').getContext('2d');
 }
 
 function drawRadar() {
-  const ctx = rCtx;
-  const cx = RADAR_CX, cy = RADAR_CY, R = RADAR_R;
-
-  ctx.clearRect(0, 0, 210, 210);
-
-  // Clip to circle
+  const ctx = rCtx, CX=105, CY=105, R=102;
+  ctx.clearRect(0,0,210,210);
   ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.clip();
+  ctx.beginPath(); ctx.arc(CX,CY,R,0,Math.PI*2); ctx.clip();
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,210,210);
 
-  // Background
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 210, 210);
-
-  // Subtle grid lines
-  ctx.strokeStyle = 'rgba(0,255,65,0.08)'; ctx.lineWidth = 1;
-  for (let i = -4; i <= 4; i++) {
-    ctx.beginPath(); ctx.moveTo(cx + i*25, cy-R); ctx.lineTo(cx + i*25, cy+R); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx-R, cy + i*25); ctx.lineTo(cx+R, cy + i*25); ctx.stroke();
+  // Grid
+  ctx.strokeStyle='rgba(0,255,65,0.07)'; ctx.lineWidth=1;
+  for (let i=-4; i<=4; i++) {
+    ctx.beginPath(); ctx.moveTo(CX+i*25,CY-R); ctx.lineTo(CX+i*25,CY+R); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(CX-R,CY+i*25); ctx.lineTo(CX+R,CY+i*25); ctx.stroke();
   }
 
-  // Draw storms
+  // Storm cells
   storms.forEach(s => {
-    if (s.x < -10 || s.x > 220 || s.y < -10 || s.y > 220) return;
-    const inp = s.intens;
+    if (s.x<-5||s.x>215||s.y<-5||s.y>215) return;
+    const inp=s.intens;
+    const sz=28+inp*30;
+    const gr=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,sz);
+    if (inp>.72)      { gr.addColorStop(0,`rgba(200,0,255,${inp})`); gr.addColorStop(0.3,`rgba(255,0,0,${inp*.85})`); gr.addColorStop(0.6,`rgba(255,120,0,${inp*.5})`); }
+    else if (inp>.48) { gr.addColorStop(0,`rgba(255,10,10,${inp})`); gr.addColorStop(0.4,`rgba(255,165,0,${inp*.7})`); gr.addColorStop(0.7,`rgba(0,200,0,${inp*.4})`); }
+    else if (inp>.28) { gr.addColorStop(0,`rgba(255,210,0,${inp+.1})`); gr.addColorStop(0.5,`rgba(0,220,0,${inp*.65})`); }
+    else              { gr.addColorStop(0,`rgba(0,200,60,${inp+.2})`); gr.addColorStop(0.6,`rgba(0,100,20,${inp*.45})`); }
+    gr.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.arc(s.x,s.y,sz,0,Math.PI*2); ctx.fillStyle=gr; ctx.fill();
 
-    // Cell body gradient
-    const sz = 32 + inp*28;
-    const gr = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, sz);
-    if (inp > 0.72) {
-      gr.addColorStop(0,   `rgba(200,0,255,${inp})`);
-      gr.addColorStop(0.25,`rgba(255,0,0,${inp*0.85})`);
-      gr.addColorStop(0.55,`rgba(255,120,0,${inp*0.5})`);
-      gr.addColorStop(1,   'rgba(0,0,0,0)');
-    } else if (inp > 0.48) {
-      gr.addColorStop(0,   `rgba(255,10,10,${inp})`);
-      gr.addColorStop(0.35,`rgba(255,165,0,${inp*0.75})`);
-      gr.addColorStop(0.65,`rgba(0,200,0,${inp*0.4})`);
-      gr.addColorStop(1,   'rgba(0,0,0,0)');
-    } else if (inp > 0.28) {
-      gr.addColorStop(0,   `rgba(255,210,0,${inp+0.1})`);
-      gr.addColorStop(0.4, `rgba(0,220,0,${inp*0.7})`);
-      gr.addColorStop(1,   'rgba(0,0,0,0)');
-    } else {
-      gr.addColorStop(0,   `rgba(0,200,60,${inp+0.2})`);
-      gr.addColorStop(0.6, `rgba(0,100,20,${inp*0.5})`);
-      gr.addColorStop(1,   'rgba(0,0,0,0)');
+    if (s.isSuperCell && inp>.38) {
+      ctx.beginPath(); ctx.arc(s.x+18,s.y+14,14,Math.PI*.5,Math.PI*1.6);
+      ctx.strokeStyle=`rgba(255,60,0,${inp*.85})`; ctx.lineWidth=7; ctx.stroke();
     }
-    ctx.beginPath(); ctx.arc(s.x, s.y, sz, 0, Math.PI*2);
-    ctx.fillStyle = gr; ctx.fill();
-
-    // Hook echo for tornadic supercell
-    if (s.isSuperCell && s.intens > 0.38) {
-      ctx.beginPath();
-      ctx.arc(s.x+18, s.y+14, 14, Math.PI*0.5, Math.PI*1.6);
-      ctx.strokeStyle = `rgba(255,60,0,${inp*0.85})`;
-      ctx.lineWidth = 7; ctx.stroke();
+    if (s.isSuperCell && s.rot>.15) {
+      ctx.beginPath(); ctx.arc(s.x-9,s.y,7,0,Math.PI*2);
+      ctx.fillStyle=`rgba(0,255,120,${s.rot*.9})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(s.x+9,s.y,7,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,40,40,${s.rot*.9})`; ctx.fill();
     }
-
-    // Velocity couplet (doppler)
-    if (s.isSuperCell && s.rot > 0.15) {
-      // Inbound (green)
-      ctx.beginPath(); ctx.arc(s.x-9, s.y, 7, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(0,255,120,${s.rot*0.9})`; ctx.fill();
-      // Outbound (red)
-      ctx.beginPath(); ctx.arc(s.x+9, s.y, 7, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(255,40,40,${s.rot*0.9})`; ctx.fill();
-    }
-
-    // Tornado symbol
     if (s.confirmed && G.onGround) {
-      ctx.beginPath(); ctx.arc(s.x+18, s.y+16, 4.5, 0, Math.PI*2);
-      ctx.fillStyle = '#ff0000'; ctx.fill();
-      ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.x+18,s.y+16,4.5,0,Math.PI*2);
+      ctx.fillStyle='#ff0000'; ctx.fill();
+      ctx.strokeStyle='#ffff00'; ctx.lineWidth=1.5; ctx.stroke();
     }
   });
 
-  // Radar sweep beam
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(rAngle);
-  const sweep = ctx.createLinearGradient(0, 0, R, 0);
-  sweep.addColorStop(0,   'rgba(0,255,65,0.5)');
-  sweep.addColorStop(0.6, 'rgba(0,255,65,0.15)');
-  sweep.addColorStop(1,   'rgba(0,255,65,0)');
-  ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0, 0, R, -0.18, 0.18); ctx.closePath();
-  ctx.fillStyle = sweep; ctx.fill();
+  // Sweep beam
+  ctx.save(); ctx.translate(CX,CY); ctx.rotate(rAngle);
+  const sw=ctx.createLinearGradient(0,0,R,0);
+  sw.addColorStop(0,'rgba(0,255,65,0.55)'); sw.addColorStop(0.6,'rgba(0,255,65,0.12)'); sw.addColorStop(1,'rgba(0,255,65,0)');
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,-0.18,0.18); ctx.closePath();
+  ctx.fillStyle=sw; ctx.fill();
   ctx.restore();
 
   ctx.restore(); // unclip
 
   // Range rings
   [25,50,75].forEach(km => {
-    const rr = R * km / 105;
-    ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI*2);
-    ctx.strokeStyle = 'rgba(0,255,65,0.18)'; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = 'rgba(0,255,65,0.45)'; ctx.font = '7px Courier New';
-    ctx.fillText(km+'km', cx+rr+2, cy-2);
+    const rr=R*km/105;
+    ctx.beginPath(); ctx.arc(CX,CY,rr,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,255,65,0.18)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle='rgba(0,255,65,0.45)'; ctx.font='7px Courier New';
+    ctx.fillText(km+'km', CX+rr+2, CY-2);
   });
 
-  // Station dot
-  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
-  ctx.fillStyle = '#00ff41'; ctx.fill();
-  ctx.fillStyle = 'rgba(0,255,65,0.7)'; ctx.font = '7px Courier New';
-  ctx.fillText('KOAX', cx+5, cy-5);
-
-  // Compass
-  ctx.fillStyle = 'rgba(0,255,65,0.75)'; ctx.font = 'bold 9px Courier New';
-  ctx.fillText('N', cx-4, 13);
-  ctx.fillText('S', cx-4, 205);
-  ctx.fillText('E', 198, cy+4);
-  ctx.fillText('O',   3, cy+4);
-
-  // Border
-  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
-  ctx.strokeStyle = 'rgba(0,255,65,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(CX,CY,3,0,Math.PI*2); ctx.fillStyle='#00ff41'; ctx.fill();
+  ctx.fillStyle='rgba(0,255,65,0.7)'; ctx.font='7px Courier New'; ctx.fillText('KOAX',CX+5,CY-5);
+  ctx.fillStyle='rgba(0,255,65,0.75)'; ctx.font='bold 9px Courier New';
+  ctx.fillText('N',CX-4,13); ctx.fillText('S',CX-4,205); ctx.fillText('E',198,CY+4); ctx.fillText('O',3,CY+4);
+  ctx.beginPath(); ctx.arc(CX,CY,R,0,Math.PI*2); ctx.strokeStyle='rgba(0,255,65,0.55)'; ctx.lineWidth=2; ctx.stroke();
 }
 
-// --------------- Alert Logic ---------------
+// ================================================================
+// ALERTS
+// ================================================================
 function issueAlert(type) {
   if (!G.running || G.alerts[type]) return;
   G.alerts[type] = true;
-  document.getElementById('btn'+type.charAt(0)+type.slice(1).toLowerCase()).classList.add('fired');
+  document.getElementById('btn'+type[0]+type.slice(1).toLowerCase()).classList.add('fired');
 
-  const dist = G.dist;
-  let lives = 0, msg = '', cls = '';
-
-  if (type === 'WATCH') {
-    document.getElementById('btnWatch').classList.add('fired');
-    if (dist > 9000)      { lives = Math.floor(G.atRisk*0.10); msg = '⚠ VEILLE émise — population en état d\'alerte préventive. +'+lives+' vies.'; G.score+=120; }
-    else if (dist > 4500) { lives = Math.floor(G.atRisk*0.05); msg = '⚠ VEILLE émise tardivement. Quelques évacuations. +'+lives+' vies.'; G.score+=50; }
-    else                  { msg = '⚠ VEILLE trop tardive — impact quasi imminent. Peu d\'effet.'; lives=0; }
-    cls = '';
+  const d = G.dist; let lives=0, msg='', cls='';
+  if (type==='WATCH') {
+    if (d>8500)      { lives=G.atRisk*.10|0; msg='⚠ VEILLE émise — population en alerte préventive. +'+lives+' vies.'; G.score+=120; }
+    else if (d>4500) { lives=G.atRisk*.05|0; msg='⚠ VEILLE émise tardivement. +'+lives+' vies.'; G.score+=50; }
+    else             { msg='⚠ VEILLE trop tardive — impact quasi imminent.'; }
+  } else if (type==='WARNING') {
+    cls='alert';
+    if (!G.alerts.WATCH)  { lives=G.atRisk*.09|0; msg='🌪 ALERTE sans veille préalable — confusion. +'+lives+' vies.'; G.score+=180; }
+    else if (d>6000)      { lives=G.atRisk*.28|0; msg='🌪 ALERTE TORNADE — excellente anticipation! +'+lives+' vies.'; G.score+=600; }
+    else if (d>2500)      { lives=G.atRisk*.16|0; msg='🌪 ALERTE TORNADE émise. +'+lives+' vies.'; G.score+=280; }
+    else                  { lives=G.atRisk*.05|0; msg='🌪 ALERTE trop tardive. +'+lives+' vies.'; G.score+=80; }
+  } else {
+    cls='danger';
+    if (G.alerts.WARNING && d<4500 && d>600) { lives=G.atRisk*.09|0; msg='🚨 URGENCE — abri immédiat! +'+lives+' vies.'; G.score+=350; }
+    else if (!G.alerts.WARNING) { lives=G.atRisk*.02|0; msg='🚨 URGENCE sans alerte préalable — panique! +'+lives+' vies.'; G.score+=40; }
+    else { lives=G.atRisk*.04|0; msg='🚨 URGENCE émise. +'+lives+' vies.'; G.score+=150; }
   }
-  else if (type === 'WARNING') {
-    document.getElementById('btnWarning').classList.add('fired');
-    if (!G.alerts.WATCH) {
-      lives = Math.floor(G.atRisk*0.09);
-      msg = '🌪 ALERTE sans veille préalable — confusion partielle. +'+lives+' vies.'; cls='alert'; G.score+=180;
-    } else if (dist > 6000) {
-      lives = Math.floor(G.atRisk*0.28);
-      msg = '🌪 ALERTE TORNADE — excellente anticipation! Évacuation massive. +'+lives+' vies.'; cls='alert'; G.score+=600;
-    } else if (dist > 2500) {
-      lives = Math.floor(G.atRisk*0.16);
-      msg = '🌪 ALERTE TORNADE émise. Évacuations en cours. +'+lives+' vies.'; cls='alert'; G.score+=280;
-    } else {
-      lives = Math.floor(G.atRisk*0.05);
-      msg = '🌪 ALERTE trop tardive. Évacuation partielle seulement. +'+lives+' vies.'; cls='alert'; G.score+=80;
-    }
-  }
-  else if (type === 'EMERGENCY') {
-    document.getElementById('btnEmergency').classList.add('fired');
-    if (G.alerts.WARNING && dist < 4000 && dist > 800) {
-      lives = Math.floor(G.atRisk*0.09);
-      msg = '🚨 URGENCE ABSOLUE — abri immédiat! +'+lives+' vies.'; cls='danger'; G.score+=350;
-    } else if (!G.alerts.WARNING) {
-      lives = Math.floor(G.atRisk*0.02);
-      msg = '🚨 URGENCE sans alerte préalable — panique! +'+lives+' vies.'; cls='danger'; G.score+=40;
-    } else {
-      lives = Math.floor(G.atRisk*0.04);
-      msg = '🚨 URGENCE émise — complète les protocoles. +'+lives+' vies.'; cls='danger'; G.score+=150;
-    }
-  }
-
   G.saved += lives;
   addLog(msg, cls);
   refreshScore();
@@ -1005,89 +825,64 @@ function issueAlert(type) {
 function addLog(text, cls='') {
   const log = document.getElementById('radioLog');
   const d = document.createElement('div');
-  d.className = 'radio-msg ' + cls;
-  const m = Math.floor(G.t/60), s = Math.floor(G.t%60);
-  d.textContent = `[${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}] ${text}`;
-  log.appendChild(d);
-  log.scrollTop = log.scrollHeight;
+  d.className='radio-msg '+cls;
+  const m=Math.floor(G.t/60), s=Math.floor(G.t%60);
+  d.textContent=`[${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}] ${text}`;
+  log.appendChild(d); log.scrollTop=log.scrollHeight;
 }
 
 function refreshScore() {
-  document.getElementById('scoreText').textContent =
+  document.getElementById('scoreText').textContent=
     `Vies sauvées: ${G.saved.toLocaleString('fr-FR')}  |  Score: ${G.score.toLocaleString('fr-FR')}`;
 }
 
-// --------------- Camera Controls (drag + keyboard) ---------------
-function setupPointerLock() {
-  let dragging = false, lastX = 0, lastY = 0;
-  const canvas = document.getElementById('gameCanvas');
-
-  canvas.addEventListener('mousedown', e => {
-    if (!G.running || e.button !== 0) return;
-    dragging = true; lastX = e.clientX; lastY = e.clientY;
-    canvas.style.cursor = 'none';
-  });
-  window.addEventListener('mouseup',   () => { dragging = false; canvas.style.cursor = 'crosshair'; });
-  window.addEventListener('mousemove', e => {
-    if (!dragging || !G.running) return;
-    G.yaw   -= (e.clientX - lastX) * 0.003;
-    G.pitch -= (e.clientY - lastY) * 0.003;
-    G.pitch  = Math.max(-1.1, Math.min(1.1, G.pitch));
-    camera.rotation.y = G.yaw;
-    camera.rotation.x = G.pitch;
-    lastX = e.clientX; lastY = e.clientY;
-  });
-
-  // Touch support (Chromebook trackpad two-finger drag)
-  canvas.addEventListener('touchstart', e => {
-    if (!G.running) return;
-    const t = e.touches[0];
-    dragging = true; lastX = t.clientX; lastY = t.clientY;
-  });
-  window.addEventListener('touchend',   () => { dragging = false; });
-  window.addEventListener('touchmove',  e => {
-    if (!dragging || !G.running) return;
-    const t = e.touches[0];
-    G.yaw   -= (t.clientX - lastX) * 0.003;
-    G.pitch -= (t.clientY - lastY) * 0.003;
-    G.pitch  = Math.max(-1.1, Math.min(1.1, G.pitch));
-    camera.rotation.y = G.yaw;
-    camera.rotation.x = G.pitch;
-    lastX = t.clientX; lastY = t.clientY;
-  });
-
-  // Keyboard shortcuts
-  window.addEventListener('keydown', e => {
-    if (!G.running) return;
-    if (e.key === '1') issueAlert('WATCH');
-    if (e.key === '2') issueAlert('WARNING');
-    if (e.key === '3') issueAlert('EMERGENCY');
-  });
+// ================================================================
+// CONTROLS
+// ================================================================
+function setupControls() {
+  let drag=false, lx=0, ly=0;
+  const cv=document.getElementById('gameCanvas');
+  cv.addEventListener('mousedown', e=>{ if(!G.running||e.button!==0) return; drag=true; lx=e.clientX; ly=e.clientY; cv.style.cursor='none'; });
+  window.addEventListener('mouseup',  ()=>{ drag=false; cv.style.cursor='crosshair'; });
+  window.addEventListener('mousemove', e=>{ if(!drag||!G.running) return; applyDelta(e.clientX-lx,e.clientY-ly); lx=e.clientX; ly=e.clientY; });
+  cv.addEventListener('touchstart', e=>{ if(!G.running) return; const t=e.touches[0]; drag=true; lx=t.clientX; ly=t.clientY; });
+  window.addEventListener('touchend',  ()=>{ drag=false; });
+  window.addEventListener('touchmove', e=>{ if(!drag||!G.running) return; const t=e.touches[0]; applyDelta(t.clientX-lx,t.clientY-ly); lx=t.clientX; ly=t.clientY; });
+  window.addEventListener('keydown', e=>{ if(!G.running) return; if(e.key==='1') issueAlert('WATCH'); if(e.key==='2') issueAlert('WARNING'); if(e.key==='3') issueAlert('EMERGENCY'); });
 }
 
-// --------------- Start ---------------
+function applyDelta(dx, dy) {
+  G.yaw  -= dx * 0.003;
+  G.pitch -= dy * 0.003;
+  G.pitch = Math.max(-1.1, Math.min(1.1, G.pitch));
+  camera.rotation.y = G.yaw;
+  camera.rotation.x = G.pitch;
+}
+
+// ================================================================
+// START
+// ================================================================
 function startGame() {
   document.getElementById('intro').style.display = 'none';
   G.running = true;
-
-  // Face SW so the approaching tornado is dead-center on screen
   G.yaw = Math.PI * 0.75;
   camera.rotation.y = G.yaw;
 
-  setTimeout(() => addLog('Station KOAX en ligne. Surveillance active.'), 400);
-  setTimeout(() => addLog('Atmosphère très instable. CAPE: 2840 J/kg, STP: 4.8'), 2200);
-  setTimeout(() => addLog('⚠ Fort cisaillement vertical: 54 kts sur 0-6 km.'), 4500);
-  setTimeout(() => addLog('Cellules orageuses en développement au SO de KOAX.'), 7000);
-  setTimeout(() => addLog('SPC: environnement favorable aux supercellules tornadiques.'), 10000);
+  setTimeout(()=>addLog('Station KOAX en ligne. Surveillance météo active.'),400);
+  setTimeout(()=>addLog('CAPE: 2840 J/kg. STP: 4.8. Atmosphère très instable.'),2200);
+  setTimeout(()=>addLog('⚠ Cisaillement vertical: 54 kts. Risque supercellulaire élevé.'),4500);
+  setTimeout(()=>addLog('Cellules orageuses se développant au SO de KOAX.'),7000);
+  setTimeout(()=>addLog('SPC: environnement tornадique exceptionnel ce soir.'),10000);
 
   loop();
 }
 
-// --------------- Main Loop ---------------
+// ================================================================
+// MAIN LOOP
+// ================================================================
 function loop() {
   if (!G.running) return;
   requestAnimationFrame(loop);
-
   const dt = Math.min(clock.getDelta(), 0.05);
   G.t += dt;
 
@@ -1098,303 +893,243 @@ function loop() {
   tickInstruments();
   tickCamera(dt);
 
-  renderer.render(scene, camera);
+  composer.render();
   drawRadar();
 }
 
-// --------------- Phase ---------------
+// ================================================================
+// PHASE LOGIC
+// ================================================================
 function tickPhase(dt) {
-  const t = G.t, d = G.dist;
-
-  if (t > 32 && G.phase === 'PRE') {
-    G.phase = 'WATCH';
-    setPhase('VEILLE ORAGEUSE', '#f5c400');
-    addLog('⚠ Supercellule détectée — rotation naissante au SO. Mésocyclone en formation.', 'alert');
-    storms[0].intens = 0.38; storms[0].rot = 0.3;
+  const t=G.t, d=G.dist;
+  if (t>32 && G.phase==='PRE') {
+    G.phase='WATCH'; setPhase('VEILLE ORAGEUSE','#f5c400');
+    addLog('⚠ Supercellule détectée. Rotation naissante. Mésocyclone en formation.','alert');
+    storms[0].intens=0.38; storms[0].rot=0.3;
   }
-
-  if (t > 75 && G.phase === 'WATCH') {
-    G.phase = 'WARNING';
-    setPhase('🌪 TORNADE CONFIRMÉE', '#ff5500');
-    G.onGround = true;
-    storms[0].confirmed = true; storms[0].intens = 0.62; storms[0].rot = 0.7;
-    tornadoPts.material.opacity = 0.55;
-    debrisPts.material.opacity = 0.4;
-    torLight.intensity = 0.4;
-    addLog('🌪 TORNADE AU SOL — EF0 et s\'intensifiant! Écho en crochet visible.', 'alert');
-    addLog('Trajectoire: NNE. Vitesse de déplacement: 78 km/h. Rotation: 35 m/s.', 'alert');
+  if (t>75 && G.phase==='WATCH') {
+    G.phase='WARNING'; setPhase('🌪 TORNADE CONFIRMÉE','#ff5500');
+    G.onGround=true; storms[0].confirmed=true; storms[0].intens=0.62; storms[0].rot=0.7;
+    addLog('🌪 TORNADE AU SOL — EF0 et s\'intensifiant! Écho crochet visible.','alert');
+    addLog('Trajectoire: NNE. Vitesse: 90 km/h. Rotation: 38 m/s.','alert');
   }
-
-  if (d < 4500 && G.phase === 'WARNING') {
-    G.phase = 'IMMINENT';
-    setPhase('🚨 IMPACT IMMINENT', '#ff0000');
-    storms[0].intens = 0.88; storms[0].rot = 1.0;
-    G.shake = 0.12;
-    addLog('🚨 TORNADE À 5 KM — EF'+Math.min(5,Math.floor(G.ef))+' — DANGER EXTRÊME!', 'danger');
-    addLog('Largeur estimée: '+Math.round(200+G.ef*120)+' m. Vents: '+Math.round(105+G.ef*40)+' km/h.', 'danger');
+  if (d<4500 && G.phase==='WARNING') {
+    G.phase='IMMINENT'; setPhase('🚨 IMPACT IMMINENT','#ff0000');
+    storms[0].intens=0.88; storms[0].rot=1.0; G.shake=0.12;
+    addLog('🚨 TORNADE À 4,5 KM! EF'+Math.min(5,Math.floor(G.ef))+' — DANGER EXTRÊME!','danger');
   }
-
-  if (d < 300 && G.phase === 'IMMINENT') {
-    G.phase = 'IMPACT';
-    setPhase('💥 IMPACT!', '#ff0000');
-    triggerImpact();
+  if (d<300 && G.phase==='IMMINENT') {
+    G.phase='IMPACT'; setPhase('💥 IMPACT!','#ff0000'); triggerImpact();
   }
 }
 
 function setPhase(text, color) {
-  const el = document.getElementById('phaseText');
-  el.textContent = text;
-  el.style.color = color;
-  el.style.textShadow = `0 0 20px ${color}`;
+  const el=document.getElementById('phaseText');
+  el.textContent=text; el.style.color=color; el.style.textShadow=`0 0 20px ${color}`;
 }
 
-// --------------- Tornado tick ---------------
+// ================================================================
+// TORNADO TICK
+// ================================================================
 function tickTornado(dt) {
-  // Move tornado NNE
-  const mx = Math.sin(G.t * 0.12) * 3.5;
-  const mz = Math.cos(G.t * 0.09) * 2.0;
-  tornadoGroup.position.x += (TORNADO_SPD_X + mx) * dt;
-  tornadoGroup.position.z += (TORNADO_SPD_Z + mz) * dt;
+  const mx=Math.sin(G.t*0.12)*2.5, mz=Math.cos(G.t*0.09)*2.0;
+  tornadoGroup.position.x += (TORNADO_SPD_X+mx)*dt;
+  tornadoGroup.position.z += (TORNADO_SPD_Z+mz)*dt;
+  const px=tornadoGroup.position.x, pz=tornadoGroup.position.z;
+  G.dist = Math.sqrt(px*px+pz*pz);
 
-  // Distance from station (origin)
-  const px = tornadoGroup.position.x, pz = tornadoGroup.position.z;
-  G.dist = Math.sqrt(px*px + pz*pz);
+  // Rotate debris
+  if (debrisPts) debrisPts.rotation.y -= 2.5*dt;
 
-  // Funnel rotation + particle rise
-  if (tornadoPts) {
-    tornadoPts.rotation.y -= 1.8 * dt;
-    const pp = tornadoPts.geometry.attributes.position.array;
-    for (let i = 1; i < pp.length; i += 3) {
-      pp[i] += 55 * dt;
-      if (pp[i] > 1400) pp[i] = 0;
-    }
-    tornadoPts.geometry.attributes.position.needsUpdate = true;
-  }
-  if (debrisPts) debrisPts.rotation.y -= 2.5 * dt;
-
-  // EF progression after touchdown
+  // EF progression
   if (G.onGround) {
-    const elapsed = G.t - 75;
-    if (elapsed > 0) {
-      G.ef = Math.min(5, elapsed * EF_RATE);
-      G.maxEF = Math.max(G.maxEF, G.ef);
-      updateEF();
-    }
+    const e=G.t-75; if(e>0){ G.ef=Math.min(5,e*EF_RATE); G.maxEF=Math.max(G.maxEF,G.ef); updateEF(); }
   }
 
-  // Scale: EF0=1.2 (630m radius/1680m tall), grows to 2.5 at EF5
-  const distF = Math.max(0, 1 - G.dist / 16000);
-  const efF   = 1.2 + G.ef * 0.26;
-  tornadoGroup.scale.setScalar(efF);
-  // Slight atmospheric lean
-  tornadoGroup.rotation.z = 0.04;
+  // Update all shader uniforms
+  const shaderTime = G.t;
+  const distF = Math.max(0, 1 - G.dist/14000);
+  const baseOp = G.onGround ? Math.min(0.95, 0.5+distF*0.45+G.ef*0.04) : 0;
 
-  if (tornadoPts) {
-    tornadoPts.material.opacity  = G.onGround ? Math.min(0.95, 0.5 + distF*0.4 + G.ef*0.05) : 0;
-    debrisPts.material.opacity   = G.onGround ? Math.min(0.9,  distF*0.9 + (G.ef > 1.5 ? 0.3 : 0)) : 0;
+  if (tornadoMesh) {
+    tornadoMesh.material.uniforms.uTime.value   = shaderTime;
+    tornadoMesh.material.uniforms.uOpacity.value = baseOp;
+    tornadoMantle.material.uniforms.uTime.value   = shaderTime*0.7;
+    tornadoMantle.material.uniforms.uOpacity.value = baseOp * 0.65;
+    tornadoBase.material.uniforms.uTime.value   = shaderTime;
+    tornadoBase.material.uniforms.uOpacity.value = G.onGround ? Math.min(0.9, distF*0.85 + G.ef*0.06) : 0;
+    debrisPts.material.opacity = G.onGround ? Math.min(0.85, distF*0.8+(G.ef>1?0.2:0)) : 0;
   }
 
+  // Scale: EF0 = scale 1.2, EF5 = scale 2.5
+  const sc = 1.2 + G.ef*0.26;
+  tornadoGroup.scale.setScalar(sc);
+  tornadoGroup.rotation.z = 0.04; // realistic atmospheric tilt
+
+  // Tornado green light
   torLight.position.copy(tornadoGroup.position);
-  torLight.position.y = 400;
-  torLight.intensity  = G.onGround ? (0.4 + G.ef*0.12) * distF * 6 : 0;
+  torLight.position.y = 500;
+  torLight.intensity = G.onGround ? (0.5+G.ef*0.15)*distF*5 : 0;
 
   document.getElementById('distText').textContent =
-    `Distance: ${G.dist > 1000 ? (G.dist/1000).toFixed(1)+' km' : Math.round(G.dist)+' m'}`;
+    `Distance: ${G.dist>1000?(G.dist/1000).toFixed(1)+' km':Math.round(G.dist)+' m'}`;
 }
 
 function updateEF() {
-  const ef = Math.min(5, Math.floor(G.ef));
-  document.getElementById('efBar').style.width = (G.ef/5*100)+'%';
-  document.getElementById('efText').textContent = EF_LABELS[ef];
-  document.getElementById('efText').style.color = ef < 2 ? '#f5c400' : ef < 4 ? '#ff5500' : '#ff0000';
+  const ef=Math.min(5,Math.floor(G.ef));
+  document.getElementById('efBar').style.width=(G.ef/5*100)+'%';
+  document.getElementById('efText').textContent=EF_LABELS[ef];
+  document.getElementById('efText').style.color=ef<2?'#f5c400':ef<4?'#ff5500':'#ff0000';
 }
 
-// --------------- Weather tick ---------------
+// ================================================================
+// WEATHER TICK
+// ================================================================
 function tickWeather(dt) {
-  const stormProg = Math.min(1, G.t / 130);
+  const sp=Math.min(1, G.t/130);
 
-  // Rain animation
-  if (rainPts) {
-    const rp = rainPts.geometry.attributes.position.array;
-    const wDrift = G.onGround ? 0.6 : 0.12;
-    for (let i = 0; i < rp.length; i += 3) {
-      rp[i+1] -= 130 * dt;
-      rp[i]   += wDrift * Math.sin(G.t*0.4) * 35 * dt;
-      rp[i+2] += wDrift * 22 * dt;
-      if (rp[i+1] < 0) {
-        rp[i+1] = 370 + Math.random()*40;
-        rp[i]   = (Math.random()-0.5)*1200;
-        rp[i+2] = (Math.random()-0.5)*1200;
+  // Rain streaks animation
+  if (rainLines) {
+    const pos=rainLines.geometry.attributes.position.array;
+    const wX=Math.sin(G.t*0.4)*(G.onGround?0.7:0.12)*38;
+    const wZ=(G.onGround?0.55:0.1)*24;
+    const DROP=9;
+    for (let i=0; i<RAIN_N; i++) {
+      pos[i*6+1] -= 140*dt;
+      pos[i*6]   += wX*dt;
+      pos[i*6+2] += wZ*dt;
+      if (pos[i*6+1]<0) {
+        const x=(Math.random()-.5)*1100, y=370+Math.random()*40, z=(Math.random()-.5)*1100;
+        pos[i*6]=x; pos[i*6+1]=y; pos[i*6+2]=z;
       }
+      pos[i*6+3]=pos[i*6]-0.9; pos[i*6+4]=pos[i*6+1]-DROP; pos[i*6+5]=pos[i*6+2]+0.6;
     }
-    rainPts.geometry.attributes.position.needsUpdate = true;
-    // Rain invisible at start, builds up as storm arrives
-    rainPts.material.opacity = Math.max(0, stormProg * 0.55 - 0.05);
+    rainLines.geometry.attributes.position.needsUpdate=true;
+    rainLines.material.opacity=Math.max(0, sp*0.55-0.04);
   }
 
-  // Lightning (only once storm is developing)
-  if (G.t > 25) {
-    G.lightT += dt;
-    if (G.lightT > G.nextLight) {
-      G.lightT = 0;
-      G.nextLight = 1.5 + Math.random() * (G.onGround ? 3 : 8);
-      doLightning();
+  // Lightning (from t=25s onward)
+  if (G.t>25) {
+    G.lightT+=dt;
+    if (G.lightT>G.nextLight) {
+      G.lightT=0; G.nextLight=1.5+Math.random()*(G.onGround?3:8); doLightning();
     }
   }
 
-  // Progressive darkening: bright day → stormy as tornado approaches
-  ambLight.intensity = Math.max(0.8, 3.0 - stormProg * 2.2);
-  sunLight.intensity = Math.max(0.2, 2.8 - stormProg * 2.5);
-  scene.fog.density  = 0.000032 + stormProg * 0.00006 + (1 - G.vis/12)*0.00004;
-  if (skyMat) skyMat.uniforms.darkness.value = Math.min(1, stormProg * 1.4);
+  // Progressive lighting: bright day → stormy dark
+  hemiLight.intensity  = Math.max(0.25, 1.8 - sp*1.5);
+  sunLight.intensity   = Math.max(0.10, 2.6 - sp*2.4);
+  ambLight.intensity   = Math.max(0.05, 0.4 - sp*0.35);
+  scene.fog.density    = 0.000025 + sp*0.00007 + (1-G.vis/12)*0.00004;
+
+  // Sky transitions clear → tornado green
+  if (skyMat) skyMat.uniforms.uStorm.value = Math.min(1, sp*1.35);
+
+  // Bloom strengthens with storm
+  if (bloomPass) bloomPass.strength = 0.55 + sp*0.7 + G.ef*0.08;
 }
 
 function doLightning() {
-  flashLight.position.set((Math.random()-0.5)*9000, 900+Math.random()*1200, -1500+(Math.random()-0.5)*4000);
-  flashLight.intensity = 8 + Math.random()*14;
-  const flashEl = document.getElementById('flash');
-  flashEl.style.opacity = (0.04 + Math.random()*0.08).toFixed(3);
-  setTimeout(() => { flashLight.intensity = 0; flashEl.style.opacity = '0'; }, 55);
-  setTimeout(() => {
-    flashLight.intensity = 4 + Math.random()*7;
-    flashEl.style.opacity = (0.02+Math.random()*0.05).toFixed(3);
-  }, 90);
-  setTimeout(() => { flashLight.intensity = 0; flashEl.style.opacity = '0'; }, 170);
-  ambLight.intensity += 0.5;
-  setTimeout(() => ambLight.intensity -= 0.5, 90);
+  flashLight.position.set((Math.random()-.5)*10000, 1000+Math.random()*1500, (Math.random()-.5)*6000);
+  const intensity = 12+Math.random()*18;
+  flashLight.intensity = intensity;
+  const fl = document.getElementById('flash');
+  fl.style.opacity=(0.05+Math.random()*0.1).toFixed(2);
+  setTimeout(()=>{ flashLight.intensity=0; fl.style.opacity='0'; },55);
+  setTimeout(()=>{ flashLight.intensity=intensity*0.5; fl.style.opacity=(0.02+Math.random()*0.05).toFixed(2); },90);
+  setTimeout(()=>{ flashLight.intensity=0; fl.style.opacity='0'; },165);
 }
 
-// --------------- Instruments tick ---------------
+// ================================================================
+// INSTRUMENTS
+// ================================================================
 function tickInstruments() {
-  const t = G.t, d = G.dist, sp = Math.min(1, t/130);
-
-  // Pressure
-  G.pressure = 1013 - sp*22 - (G.onGround ? (1-Math.min(1,d/14000))*28 : 0) + Math.sin(t*0.4)*0.4;
-  setInst('iPress', Math.round(G.pressure)+' hPa', G.pressure < 990 ? 'danger' : G.pressure < 1000 ? '' : '');
-
-  // Wind
-  const windNear = G.onGround ? (1-Math.min(1,d/10000))*90 : 0;
-  G.wind = 18 + sp*45 + windNear + Math.sin(t*1.1)*6;
-  setInst('iWind', Math.round(G.wind)+' km/h', G.wind > 120 ? 'critical' : G.wind > 70 ? 'danger' : '');
-
-  // Direction
-  const dirIdx = Math.floor(((t*0.08) % COMPASS.length + COMPASS.length) % COMPASS.length);
-  setInst('iDir', COMPASS[dirIdx]);
-
-  // Visibility
-  G.vis = Math.max(0.05, 12 - sp*8 - (G.onGround ? (1-Math.min(1,d/14000))*5 : 0));
-  const visStr = G.vis >= 1 ? (Math.round(G.vis*10)/10)+' km' : Math.round(G.vis*1000)+' m';
-  setInst('iVis', visStr, G.vis < 0.5 ? 'critical' : G.vis < 2 ? 'danger' : '');
-
-  // Dew point
-  setInst('iDew', (19 + Math.sin(t*0.07)*0.5).toFixed(1)+'°C');
-
-  // CAPE
-  setInst('iCAPE', Math.round(2840+sp*280-Math.random()*15)+' J/kg', 'danger');
-
-  // Shear
-  setInst('iShear', Math.round(54+sp*18)+' kts', 'danger');
-
-  // Rotation
-  if (G.onGround) {
-    G.rot = 35 + G.ef*16 + Math.sin(t*0.7)*5;
-    setInst('iRot', Math.round(G.rot)+' m/s', G.rot > 60 ? 'critical' : 'danger');
-  } else if (t > 32) {
-    G.rot = Math.min(28, (t-32)*0.55) + Math.sin(t*0.4)*3;
-    setInst('iRot', Math.round(G.rot)+' m/s', G.rot > 15 ? 'danger' : '');
-  }
+  const t=G.t, d=G.dist, sp=Math.min(1,t/130);
+  G.pressure=1013-sp*22-(G.onGround?(1-Math.min(1,d/14000))*28:0)+Math.sin(t*.4)*.4;
+  setInst('iPress', Math.round(G.pressure)+' hPa', G.pressure<990?'danger':'');
+  const wNear=G.onGround?(1-Math.min(1,d/10000))*95:0;
+  G.wind=18+sp*48+wNear+Math.sin(t*1.1)*6;
+  setInst('iWind', Math.round(G.wind)+' km/h', G.wind>120?'critical':G.wind>70?'danger':'');
+  setInst('iDir', COMPASS[Math.floor(((t*.08)%COMPASS.length+COMPASS.length)%COMPASS.length)]);
+  G.vis=Math.max(0.05,12-sp*8-(G.onGround?(1-Math.min(1,d/14000))*5:0));
+  setInst('iVis', G.vis>=1?(Math.round(G.vis*10)/10)+' km':Math.round(G.vis*1000)+' m', G.vis<.5?'critical':G.vis<2?'danger':'');
+  setInst('iDew', (19+Math.sin(t*.07)*.5).toFixed(1)+'°C');
+  setInst('iCAPE', Math.round(2840+sp*280-Math.random()*15)+' J/kg','danger');
+  setInst('iShear', Math.round(54+sp*18)+' kts','danger');
+  if (G.onGround) { G.rot=35+G.ef*16+Math.sin(t*.7)*5; setInst('iRot', Math.round(G.rot)+' m/s', G.rot>60?'critical':'danger'); }
+  else if (t>32)  { G.rot=Math.min(28,(t-32)*.55)+Math.sin(t*.4)*3; setInst('iRot', Math.round(G.rot)+' m/s', G.rot>15?'danger':''); }
 }
 
 function setInst(id, val, cls='') {
-  const el = document.getElementById(id);
-  el.textContent = val;
-  el.className = 'inst-val' + (cls ? ' '+cls : '');
+  const el=document.getElementById(id);
+  el.textContent=val; el.className='inst-val'+(cls?' '+cls:'');
 }
 
-// --------------- Radar tick ---------------
+// ================================================================
+// RADAR TICK
+// ================================================================
 function tickRadar(dt) {
-  rAngle += dt * 1.4;
-  storms.forEach(s => { s.x += s.vx*dt*0.5; s.y += s.vy*dt*0.5; });
-  if (G.t > 32)  { storms[0].intens = Math.min(1, 0.35 + (G.t-32)/110); }
-  if (G.onGround){ storms[0].rot    = Math.min(1, 0.55 + G.ef*0.09); }
+  rAngle += dt*1.4;
+  storms.forEach(s=>{ s.x+=s.vx*dt*.5; s.y+=s.vy*dt*.5; });
+  if (G.t>32)   storms[0].intens=Math.min(1,0.35+(G.t-32)/110);
+  if (G.onGround) storms[0].rot=Math.min(1,0.55+G.ef*.09);
 }
 
-// --------------- Camera shake ---------------
+// ================================================================
+// CAMERA SHAKE
+// ================================================================
 function tickCamera(dt) {
-  if (G.shake > 0) {
-    const nearFact = Math.max(0, 1 - G.dist/4000);
-    const s = G.shake * nearFact;
-    if (s > 0.01) {
-      camera.position.x = (Math.random()-0.5)*s*0.12;
-      camera.position.y = 3.2 + (Math.random()-0.5)*s*0.07;
-      camera.position.z = 1.5 + (Math.random()-0.5)*s*0.06;
-    } else {
-      camera.position.set(0, 3.2, 1.5);
-    }
+  if (G.shake>0) {
+    const nearF=Math.max(0,1-G.dist/4000), s=G.shake*nearF;
+    if (s>.01) {
+      camera.position.x=(Math.random()-.5)*s*.13;
+      camera.position.y=3.2+(Math.random()-.5)*s*.08;
+      camera.position.z=1.5+(Math.random()-.5)*s*.06;
+    } else { camera.position.set(0,3.2,1.5); }
   }
 }
 
-// --------------- Impact ---------------
+// ================================================================
+// IMPACT / END
+// ================================================================
 function triggerImpact() {
-  G.shake = 1.5;
-  tornadoPts.material.opacity = 0.98;
-  debrisPts.material.opacity  = 0.98;
+  G.shake=1.5;
+  addLog('💥 IMPACT DIRECT! Station sous attaque!','danger');
+  addLog('💥 Vents: '+Math.round(G.wind)+' km/h — Structures endommagées!','danger');
+  if (bloomPass) bloomPass.strength=2.5;
 
-  addLog('💥 IMPACT DIRECT! Station sous attaque! Résistez!', 'danger');
-  addLog('💥 Vents: '+Math.round(G.wind)+' km/h — Structures endommagées!', 'danger');
+  let n=0;
+  const strobe=setInterval(()=>{
+    hemiLight.intensity=n%2===0?4:0.08;
+    document.getElementById('flash').style.opacity=n%2===0?'0.2':'0';
+    n++; if(n>16){ clearInterval(strobe); hemiLight.intensity=0.25; document.getElementById('flash').style.opacity='0'; }
+  },130);
 
-  // Strobe effect
-  let n = 0;
-  const strobe = setInterval(() => {
-    ambLight.intensity = n%2===0 ? 3.5 : 0.08;
-    document.getElementById('flash').style.opacity = n%2===0 ? '0.18' : '0';
-    n++;
-    if (n > 14) { clearInterval(strobe); ambLight.intensity = 0.18; document.getElementById('flash').style.opacity='0'; }
-  }, 140);
-
-  setTimeout(() => addLog('Passage de la tornade. Station partiellement endommagée. Émetteur actif.'), 4000);
-  setTimeout(() => { addLog('Tornade s\'éloigne vers NNE. Dommages en cours d\'évaluation.'); G.shake = 0.2; }, 7000);
-  setTimeout(() => endGame(), 11000);
+  setTimeout(()=>addLog('Passage de la tornade. Émetteur toujours actif.'),4000);
+  setTimeout(()=>{ addLog('Tornade s\'éloigne vers NNE. Dommages en cours d\'évaluation.'); G.shake=0.18; },7000);
+  setTimeout(()=>endGame(),12000);
 }
 
-// --------------- End Game ---------------
 function endGame() {
-  if (G.phase === 'OVER') return;
-  G.phase = 'OVER';
-  G.running = false;
-
-  G.score += Math.floor(G.t) * 2;
-  const pct = G.saved / G.atRisk;
-  const grade = pct > 0.90 ? 'A+' : pct > 0.74 ? 'A' : pct > 0.58 ? 'B' : pct > 0.38 ? 'C' : pct > 0.22 ? 'D' : 'F';
-  const gradeColor = (grade==='A+'||grade==='A') ? '#00ff41' : (grade==='B'||grade==='C') ? '#f5c400' : '#ff5500';
-  const efMax = Math.min(5, Math.floor(G.maxEF));
-  const efNames = ['EF0','EF1','EF2','EF3','EF4','EF5'];
-  const alertCount = Object.values(G.alerts).filter(Boolean).length;
-
-  const messages = {
-    'A+': 'Performance exemplaire — protocoles parfaitement respectés.',
-    'A' : 'Excellent travail. Alertes bien calibrées.',
-    'B' : 'Bon travail. Quelques alertes tardives.',
-    'C' : 'Performance correcte. Meilleure anticipation possible.',
-    'D' : 'Alertes trop tardives. Formation recommandée.',
-    'F' : 'Protocoles non respectés. Formation obligatoire.',
-  };
-
-  document.getElementById('goScore').textContent =
-    `Score final: ${G.score.toLocaleString('fr-FR')}  |  Grade: ${grade}`;
-  document.getElementById('goDetails').innerHTML = `
+  if (G.phase==='OVER') return;
+  G.phase='OVER'; G.running=false;
+  G.score+=Math.floor(G.t)*2;
+  const pct=G.saved/G.atRisk;
+  const grade=pct>.90?'A+':pct>.74?'A':pct>.58?'B':pct>.38?'C':pct>.22?'D':'F';
+  const gc=grade==='A+'||grade==='A'?'#00ff41':grade==='B'||grade==='C'?'#f5c400':'#ff5500';
+  const ef=Math.min(5,Math.floor(G.maxEF));
+  const msg={'A+':'Performance exemplaire — protocoles parfaitement respectés.','A':'Excellent travail. Alertes bien calibrées.','B':'Bon travail. Quelques alertes tardives.','C':'Performance correcte. Meilleure anticipation possible.','D':'Alertes trop tardives. Formation recommandée.','F':'Protocoles non respectés. Formation obligatoire.'};
+  document.getElementById('goScore').textContent=`Score: ${G.score.toLocaleString('fr-FR')}  |  Grade: ${grade}`;
+  document.getElementById('goDetails').innerHTML=`
     Vies sauvées: <strong>${G.saved.toLocaleString('fr-FR')} / ${G.atRisk.toLocaleString('fr-FR')}</strong> (${Math.round(pct*100)}%)<br>
-    Tornade maximale: <strong>${efNames[efMax]}</strong><br>
+    Tornade maximale: <strong>EF${ef}</strong><br>
     Durée simulation: <strong>${Math.floor(G.t/60)}m ${Math.floor(G.t%60)}s</strong><br>
-    Alertes émises: <strong>${alertCount} / 3</strong><br><br>
-    <span style="color:${gradeColor}">${messages[grade]}</span>
-  `;
-
-  const go = document.getElementById('gameover');
-  go.style.display = 'flex';
+    Alertes émises: <strong>${Object.values(G.alerts).filter(Boolean).length} / 3</strong><br><br>
+    <span style="color:${gc}">${msg[grade]}</span>`;
+  document.getElementById('gameover').style.display='flex';
 }
 
-// --------------- Boot ---------------
+// ================================================================
 init();
 </script>
 </body>
